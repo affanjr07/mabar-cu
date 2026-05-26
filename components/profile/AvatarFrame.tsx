@@ -6,6 +6,27 @@ interface AvatarFrameProps {
   border?: any
   size?: "small" | "medium" | "large" | "shop"
 }
+function getBorderEffect(border: any) {
+  switch (border?.rarity) {
+    case "mythic":
+      return "animate-pulse drop-shadow-[0_0_15px_gold]"
+
+    case "legendary":
+      return "drop-shadow-[0_0_12px_orange]"
+
+    case "epic":
+      return "drop-shadow-[0_0_12px_purple]"
+
+    case "elite":
+      return "drop-shadow-[0_0_12px_lime]"
+
+    case "rare":
+      return "drop-shadow-[0_0_12px_deepskyblue]"
+
+    default:
+      return ""
+  }
+}
 
 export default function AvatarFrame({
   avatarUrl,

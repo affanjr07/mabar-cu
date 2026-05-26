@@ -32,6 +32,8 @@ interface Player {
   preferred_role?: string
   region?: string
   online_status: boolean
+  last_online?: string
+  last_online_text?: string
   average_rating?: number
   role?: "user" | "admin" | "pro_player"
   equipped_avatar_border?: any
@@ -53,20 +55,65 @@ export default function DashboardPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  const [playersOffset, setPlayersOffset] = useState(0)
+  const [hasMorePlayers, setHasMorePlayers] = useState(true)
+
+  const playerLimit = 15
+
+  function sortPlayersByStatus(data: Player[]) {
+    return [...data].sort((a, b) => {
+      if (a.online_status === b.online_status) return 0
+      return a.online_status ? -1 : 1
+    })
+  }
+
+  async function loadPlayers(reset = false) {
+    try {
+      if (reset) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
+
+      const nextOffset = reset ? 0 : playersOffset
+
+      let data: Player[] = []
+
+      try {
+        data = await searchPlayers("", playerLimit, nextOffset)
+      } catch {
+        data = await getOnlinePlayers(playerLimit, nextOffset)
+      }
+
+      const sortedData = sortPlayersByStatus(data || [])
+
+      if (reset) {
+        setPlayers(sortedData)
+        setPlayersOffset(playerLimit)
+      } else {
+        setPlayers((prev) => sortPlayersByStatus([...prev, ...sortedData]))
+        setPlayersOffset((prev) => prev + playerLimit)
+      }
+
+      setHasMorePlayers((data || []).length === playerLimit)
+    } catch (error) {
+      console.log("Players error:", error)
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }
 
   async function loadDashboard() {
     try {
       setLoading(true)
 
-      const [playersData, tournamentsData] = await Promise.all([
-        getOnlinePlayers(),
-        getTournaments(),
-      ])
+      const tournamentsData = await getTournaments()
+      setTournaments(tournamentsData || [])
 
-      console.log("playersData:", playersData)
-
-      setPlayers(playersData)
-      setTournaments(tournamentsData)
+      await loadPlayers(true)
     } catch (error) {
       console.log("Dashboard error:", error)
     } finally {
@@ -77,21 +124,42 @@ export default function DashboardPage() {
   async function handleSearch(value: string) {
     setSearch(value)
 
-    if (!value.trim()) {
-      loadDashboard()
-      return
-    }
-
     try {
-      const data = await searchPlayers(value)
-      setPlayers(data)
+      setLoading(true)
+
+      const data = await searchPlayers(value, playerLimit, 0)
+      const sortedData = sortPlayersByStatus(data || [])
+
+      setPlayers(sortedData)
+      setPlayersOffset(playerLimit)
+      setHasMorePlayers((data || []).length === playerLimit)
     } catch (error) {
       console.log("Search error:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleLoadMore() {
+    try {
+      setLoadingMore(true)
+
+      const data = await searchPlayers(search, playerLimit, playersOffset)
+      const sortedData = sortPlayersByStatus(data || [])
+
+      setPlayers((prev) => sortPlayersByStatus([...prev, ...sortedData]))
+      setPlayersOffset((prev) => prev + playerLimit)
+      setHasMorePlayers((data || []).length === playerLimit)
+    } catch (error) {
+      console.log("Load more error:", error)
+    } finally {
+      setLoadingMore(false)
     }
   }
 
   function handleLogout() {
     logout()
+    localStorage.removeItem("mabar_token")
     router.push("/login")
   }
 
@@ -100,6 +168,7 @@ export default function DashboardPage() {
   }, [])
 
   const featuredTournament = tournaments[0]
+  const onlinePlayersCount = players.filter((player) => player.online_status).length
 
   return (
     <ProtectedRoute>
@@ -108,7 +177,6 @@ export default function DashboardPage() {
 
         <section className="custom-scrollbar flex flex-1 flex-col justify-between overflow-y-auto">
           <div className="p-6 lg:p-8">
-            {/* HEADER */}
             <div className="flex flex-col justify-between gap-6 border-b-2 border-[#191B1F] pb-6 lg:flex-row lg:items-center">
               <div>
                 <h1 className="text-3xl font-black uppercase tracking-tight md:text-4xl">
@@ -142,17 +210,12 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ANNOUNCEMENT */}
             <div className="mt-6">
               <AnnouncementBanner />
             </div>
 
-            {/* MARQUEE */}
             <div className="mt-6 overflow-hidden border-2 border-black bg-[#191B1F] py-2 text-xs font-black uppercase tracking-widest text-[#53FC18]">
               <div className="marquee-track gap-8 whitespace-nowrap">
-                <span>
-                  🔥 UPDATE TOURNAMENT TERBARU SEDANG BERLANGSUNG • SEGERA DAFTARKAN TIM MU SEBELUM SLOT HABIS • MABAR.CU CHAMPIONSHIP 2026 IS LIVE NOW
-                </span>
                 <span>
                   🔥 UPDATE TOURNAMENT TERBARU SEDANG BERLANGSUNG • SEGERA DAFTARKAN TIM MU SEBELUM SLOT HABIS • MABAR.CU CHAMPIONSHIP 2026 IS LIVE NOW
                 </span>
@@ -165,7 +228,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* HERO */}
             <div className="mt-6 grid gap-6 lg:grid-cols-3">
               <div className="group relative overflow-hidden border-2 border-black bg-[#0E1318] p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:p-8 lg:col-span-2">
                 <div className="pointer-events-none absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[#53FC18]/10 to-transparent" />
@@ -212,8 +274,7 @@ export default function DashboardPage() {
                   </h3>
 
                   <p className="mt-2 text-xs font-bold uppercase leading-relaxed tracking-tight text-zinc-400">
-                    Dapatkan badge eksklusif kotak hijau, akses prioritas matchmaking,
-                    dan fitur analisis performa tim terlengkap.
+                    Dapatkan badge eksklusif, akses prioritas matchmaking, dan fitur booking VIP.
                   </p>
                 </div>
 
@@ -226,10 +287,15 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* STATS */}
             <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
                 value={players.length}
+                label="Loaded Players"
+                icon={<Flame size={20} className="text-zinc-600" />}
+              />
+
+              <StatCard
+                value={onlinePlayersCount}
                 label="Online Players"
                 icon={<Flame size={20} className="text-zinc-600" />}
               />
@@ -245,32 +311,17 @@ export default function DashboardPage() {
                 label="Party Mode"
                 icon={<Swords size={20} className="text-zinc-600" />}
               />
-
-              <div className="border-2 border-black bg-[#0E1318] p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-transform hover:translate-y-[-2px]">
-                <div className="flex items-start justify-between">
-                  <h2 className="text-4xl font-black tracking-tight text-[#53FC18]">
-                    LIVE
-                  </h2>
-
-                  <div className="mt-3 h-3 w-3 animate-pulse border border-black bg-[#53FC18]" />
-                </div>
-
-                <p className="mt-1 text-xs font-black uppercase tracking-wider text-zinc-500">
-                  Server Status
-                </p>
-              </div>
             </div>
 
-            {/* PLAYERS */}
             <div className="mt-14">
               <div className="mb-6 flex flex-col gap-4 border-b border-[#191B1F] pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-2xl font-black uppercase tracking-tight">
-                    Active Lobby Players
+                    Lobby Players
                   </h2>
 
                   <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-                    Ajak mabar secara instan sekarang juga.
+                    Semua player ditampilkan, online di atas dan offline tetap terlihat.
                   </p>
                 </div>
 
@@ -289,35 +340,51 @@ export default function DashboardPage() {
               ) : players.length === 0 ? (
                 <div className="border-2 border-dashed border-[#191B1F] bg-[#0E1318] p-8 text-center text-xs font-bold uppercase tracking-wider text-zinc-400">
                   <ShieldAlert className="mx-auto mb-2 text-zinc-600" size={24} />
-                  Belum ada player online dalam jangkauan radar.
+                  Belum ada player dalam jangkauan radar.
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {players.map((player) => (
-                    <div
-                      key={player.id}
-                      className="transition-transform duration-150 hover:translate-y-[-2px]"
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {players.map((player) => (
+                      <div
+                        key={player.id}
+                        className={`transition-transform duration-150 hover:translate-y-[-2px] ${
+                          player.online_status ? "" : "opacity-70 grayscale"
+                        }`}
+                      >
+                        <GamerCard
+                          id={player.id}
+                          username={player.display_name || player.username}
+                          role={player.preferred_role || "Unknown Role"}
+                          rank={player.game_rank || "Unranked"}
+                          online={Boolean(player.online_status)}
+                          avatar={player.avatar_url}
+                          avatarBorder={player.equipped_avatar_border}
+                          game={player.favorite_game}
+                          region={player.region}
+                          rating={player.average_rating}
+                          pro={player.role === "pro_player"}
+                          lastOnlineText={
+                            player.online_status
+                              ? "Online sekarang"
+                              : player.last_online_text || "Offline"
+                          }
+                          onViewProfile={() => router.push(`/users/${player.id}`)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {hasMorePlayers && (
+                    <button
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="mt-8 w-full border-2 border-black bg-[#191B1F] py-4 text-xs font-black uppercase tracking-widest text-[#53FC18] hover:bg-black disabled:opacity-50"
                     >
-                      <GamerCard
-                        id={player.id}
-                        username={player.display_name || player.username}
-                        role={player.preferred_role || "Unknown Role"}
-                        rank={player.game_rank || "Unranked"}
-                        online={player.online_status}
-                        avatar={player.avatar_url}
-                        avatarBorder={player.equipped_avatar_border}
-                        game={player.favorite_game}
-                        region={player.region}
-                        rating={player.average_rating}
-                        pro={player.role === "pro_player"}
-                        onViewProfile={() => {
-                          console.log("OPEN USER PROFILE:", player.id, player.username)
-                          router.push(`/users/${player.id}`)
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
+                      {loadingMore ? "Loading More..." : "Load More Players"}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

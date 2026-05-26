@@ -1,5 +1,10 @@
 "use client"
 
+interface AvatarBorder {
+  image_url?: string
+  name?: string
+}
+
 interface PartyMember {
   id: string
   user_id: string
@@ -10,6 +15,8 @@ interface PartyMember {
     username?: string
     display_name?: string
     avatar_url?: string
+    online_status?: boolean
+    equipped_avatar_border?: string | AvatarBorder | null
   }
 }
 
@@ -26,6 +33,7 @@ interface PartyCardProps {
   roomType?: string
   roomCode?: string
   cooldownUntil?: string
+  expiresAt?: string
   members?: PartyMember[]
   isMember?: boolean
   isOwner?: boolean
@@ -46,6 +54,7 @@ export default function PartyCard({
   roomType,
   roomCode,
   cooldownUntil,
+  expiresAt,
   members = [],
   isMember,
   isOwner,
@@ -64,9 +73,15 @@ export default function PartyCard({
       })
     : null
 
+  const expiresText = expiresAt
+    ? new Date(expiresAt).toLocaleString("id-ID", {
+        dateStyle: "short",
+        timeStyle: "short",
+      })
+    : null
+
   async function handleCopyRoomCode() {
     if (!roomCode) return
-
     await navigator.clipboard.writeText(roomCode)
     alert(`Room code disalin: ${roomCode}`)
   }
@@ -84,8 +99,14 @@ export default function PartyCard({
           </h2>
 
           <p className="mt-2 text-xs font-bold uppercase text-zinc-500">
-            Rank: {rank} • Region: {region || "GLOBAL"}
+            Rank: {rank} • Region: {region || "GLOBAL"} • {players}/{maxPlayers}
           </p>
+
+          {expiresText && (
+            <p className="mt-1 text-[10px] font-black uppercase text-yellow-400">
+              Auto close: {expiresText}
+            </p>
+          )}
         </div>
 
         <div className="text-right">
@@ -120,7 +141,7 @@ export default function PartyCard({
               <button
                 type="button"
                 onClick={handleCopyRoomCode}
-                className="mt-3 border-2 border-black bg-[#53FC18] px-4 py-2 text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                className="mt-3 border-2 border-black bg-[#53FC18] px-4 py-2 text-xs font-black uppercase text-black"
               >
                 Copy Code
               </button>
@@ -159,40 +180,11 @@ export default function PartyCard({
         </div>
       )}
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-6 flex flex-wrap gap-5">
         {[...Array(maxPlayers)].map((_, index) => {
           const member = members[index]
-          const displayName =
-            member?.profiles?.display_name ||
-            member?.profiles?.username ||
-            member?.user_id ||
-            "Empty Slot"
 
-          return (
-            <div
-              key={index}
-              className={`relative flex h-16 w-16 items-center justify-center border-2 border-black ${
-                member ? "bg-[#53FC18] text-black" : "bg-[#191B1F] text-zinc-600"
-              }`}
-              title={displayName}
-            >
-              {member ? (
-                <span className="text-xl font-black">
-                  {member.is_owner
-                    ? "O"
-                    : displayName.charAt(0).toUpperCase()}
-                </span>
-              ) : (
-                "+"
-              )}
-
-              {member?.is_owner && (
-                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 border border-black bg-yellow-400 px-1 text-[9px] font-black text-black">
-                  OWNER
-                </span>
-              )}
-            </div>
-          )
+          return <MemberAvatar key={index} member={member} />
         })}
       </div>
 
@@ -226,7 +218,8 @@ export default function PartyCard({
         <button
           type="button"
           onClick={onOpenChat}
-          className="border-2 border-black bg-[#191B1F] py-3 text-xs font-black uppercase text-[#53FC18]"
+          disabled={!isMember}
+          className="border-2 border-black bg-[#191B1F] py-3 text-xs font-black uppercase text-[#53FC18] disabled:text-zinc-600"
         >
           Chat
         </button>
@@ -239,6 +232,80 @@ export default function PartyCard({
           {isOwner ? "Owner" : isMember ? "Member" : isPrivate ? "Locked" : "Open"}
         </button>
       </div>
+    </div>
+  )
+}
+
+function MemberAvatar({ member }: { member?: PartyMember }) {
+  if (!member) {
+    return (
+      <div className="flex h-16 w-16 items-center justify-center border-2 border-black bg-[#191B1F] text-xl font-black text-zinc-600">
+        +
+      </div>
+    )
+  }
+
+  const profile = member.profiles
+
+  const displayName =
+    profile?.display_name || profile?.username || member.user_id || "Player"
+
+  const avatarUrl = profile?.avatar_url
+
+  const avatarBorder = profile?.equipped_avatar_border
+
+  const borderUrl =
+    typeof avatarBorder === "string"
+      ? avatarBorder
+      : avatarBorder?.image_url || null
+
+  return (
+    <div className="relative flex flex-col items-center gap-2" title={displayName}>
+      <div className="relative h-16 w-16">
+        <div className="absolute inset-0 overflow-hidden border-2 border-black bg-[#191B1F]">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xl font-black uppercase text-[#53FC18]">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+
+        {borderUrl && (
+          <img
+            src={borderUrl}
+            alt="Avatar Border"
+            className="pointer-events-none absolute inset-[-9px] z-10 h-[82px] w-[82px] object-contain"
+          />
+        )}
+
+        <div
+          className={`absolute -bottom-1 -right-1 z-20 h-4 w-4 border-2 border-black ${
+            profile?.online_status ? "bg-[#53FC18]" : "bg-zinc-500"
+          }`}
+        />
+      </div>
+
+      <p className="max-w-[70px] truncate text-center text-[9px] font-black uppercase text-zinc-400">
+        {displayName}
+      </p>
+
+      {member.is_owner && (
+        <span className="absolute -top-3 left-1/2 z-30 -translate-x-1/2 border border-black bg-yellow-400 px-1 text-[8px] font-black text-black">
+          OWNER
+        </span>
+      )}
+
+      {member.is_ready && !member.is_owner && (
+        <span className="absolute -top-3 left-1/2 z-30 -translate-x-1/2 border border-black bg-[#53FC18] px-1 text-[8px] font-black text-black">
+          READY
+        </span>
+      )}
     </div>
   )
 }

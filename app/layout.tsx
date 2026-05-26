@@ -1,5 +1,5 @@
 import "./globals.css"
-import type { Metadata } from "next" // Import tipe Metadata
+import type { Metadata } from "next"
 import { Orbitron, Inter } from "next/font/google"
 import AuthProvider from "@/components/providers/AuthProvider"
 import FloatingReportButton from "@/components/report/FloatingReportButton"
@@ -14,12 +14,11 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
-// Tambahkan konfigurasi metadata di sini
 export const metadata: Metadata = {
   title: "MABAR.CU | Find Your Ultimate Squad",
   description: "Indonesia #1 Gaming Squad Platform. Cari teman mabar, bentuk party rank, ikut tournament esports, dan bangun komunitas gaming terbaikmu.",
   icons: {
-    icon: "/icon.png", // Mengarah langsung ke public/icon.png
+    icon: "/icon.png",
   },
 }
 

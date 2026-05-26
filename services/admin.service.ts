@@ -20,9 +20,14 @@ export async function getModerationLogs() {
   return res.data
 }
 
-export async function banUser(userId: string, reason = "Banned by admin") {
+export async function banUser(
+  userId: string,
+  reason = "Melanggar aturan platform",
+  banned_until?: string
+) {
   const res = await api.patch(`/admin/users/${userId}/ban`, {
     reason,
+    banned_until,
   })
 
   return res.data
@@ -33,9 +38,14 @@ export async function unbanUser(userId: string) {
   return res.data
 }
 
-export async function muteUser(userId: string, reason = "Muted by admin") {
+export async function muteUser(
+  userId: string,
+  reason = "Toxic chat",
+  muted_until?: string
+) {
   const res = await api.patch(`/admin/users/${userId}/mute`, {
     reason,
+    muted_until,
   })
 
   return res.data

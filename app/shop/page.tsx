@@ -14,6 +14,40 @@ import {
   getShopItems,
 } from "@/services/economy.service"
 
+function parseMetadata(metadata: any) {
+  if (!metadata) return {}
+
+  if (typeof metadata === "object") return metadata
+
+  try {
+    return JSON.parse(metadata)
+  } catch {
+    return {}
+  }
+}
+
+function getRarityClass(rarity?: string) {
+  switch (rarity) {
+    case "mythic":
+      return "border-yellow-400 shadow-[0_0_25px_rgba(250,204,21,0.45)]"
+
+    case "legendary":
+      return "border-orange-400 shadow-[0_0_25px_rgba(251,146,60,0.35)]"
+
+    case "epic":
+      return "border-purple-500 shadow-[0_0_25px_rgba(168,85,247,0.35)]"
+
+    case "elite":
+      return "border-green-400 shadow-[0_0_25px_rgba(74,222,128,0.35)]"
+
+    case "rare":
+      return "border-blue-400 shadow-[0_0_25px_rgba(96,165,250,0.35)]"
+
+    default:
+      return "border-zinc-500"
+  }
+}
+
 export default function ShopPage() {
   const [wallet, setWallet] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -36,9 +70,13 @@ export default function ShopPage() {
         ])
 
       setWallet(walletData?.wallet || walletData)
-      setItems(Array.isArray(shopData) ? shopData : [])
-      setInventory(Array.isArray(inventoryData) ? inventoryData : [])
-      setProfile(profileData)
+      setItems(Array.isArray(shopData) ? shopData : shopData?.items || [])
+      setInventory(
+        Array.isArray(inventoryData)
+          ? inventoryData
+          : inventoryData?.inventory || []
+      )
+      setProfile(profileData?.profile || profileData)
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Gagal mengambil shop")
     } finally {
@@ -48,10 +86,6 @@ export default function ShopPage() {
 
   function getOwnedInventory(itemId: string) {
     return inventory.find((inv) => inv.shop_items?.id === itemId)
-  }
-
-  function isOwned(itemId: string) {
-    return Boolean(getOwnedInventory(itemId))
   }
 
   async function handleBuy(itemId: string) {
@@ -96,7 +130,7 @@ export default function ShopPage() {
             </h1>
 
             <p className="mt-3 text-xs font-bold uppercase text-zinc-500">
-              Beli item cosmetic pakai point. Border PNG transparan akan tampil langsung dari Supabase.
+              Badge sekarang bisa tampil gambar dari Supabase dan label animasi dari metadata.
             </p>
           </div>
 
@@ -117,53 +151,30 @@ export default function ShopPage() {
               </h2>
             </div>
 
-            <button
-              onClick={() => {
-                setType("")
-                loadData("")
-              }}
-              className={`border-2 border-black text-xs font-black uppercase ${
-                type === ""
-                  ? "bg-[#53FC18] text-black"
-                  : "bg-[#191B1F] text-[#53FC18]"
-              }`}
-            >
+            <FilterButton active={type === ""} onClick={() => {
+              setType("")
+              loadData("")
+            }}>
               All Items
-            </button>
+            </FilterButton>
 
-            <button
-              onClick={() => {
-                setType("avatar_border")
-                loadData("avatar_border")
-              }}
-              className={`border-2 border-black text-xs font-black uppercase ${
-                type === "avatar_border"
-                  ? "bg-[#53FC18] text-black"
-                  : "bg-[#191B1F] text-[#53FC18]"
-              }`}
-            >
+            <FilterButton active={type === "avatar_border"} onClick={() => {
+              setType("avatar_border")
+              loadData("avatar_border")
+            }}>
               Avatar Border
-            </button>
+            </FilterButton>
 
-            <button
-              onClick={() => {
-                setType("badge")
-                loadData("badge")
-              }}
-              className={`border-2 border-black text-xs font-black uppercase ${
-                type === "badge"
-                  ? "bg-[#53FC18] text-black"
-                  : "bg-[#191B1F] text-[#53FC18]"
-              }`}
-            >
+            <FilterButton active={type === "badge"} onClick={() => {
+              setType("badge")
+              loadData("badge")
+            }}>
               Badge
-            </button>
+            </FilterButton>
           </div>
 
           <div className="mt-12">
-            <h2 className="mb-6 text-2xl font-black uppercase">
-              Shop Items
-            </h2>
+            <h2 className="mb-6 text-2xl font-black uppercase">Shop Items</h2>
 
             {loading ? (
               <div className="border-2 border-black bg-[#0E1318] p-8 text-xs font-black uppercase text-zinc-500">
@@ -182,7 +193,7 @@ export default function ShopPage() {
                   return (
                     <div
                       key={item.id}
-                      className="border-2 border-black bg-[#0E1318] p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]"
+                      className={`border-2 bg-[#0E1318] p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] ${getRarityClass(item.rarity)}`}
                     >
                       <ItemPreview
                         item={item}
@@ -211,10 +222,17 @@ export default function ShopPage() {
                           {owned ? (
                             <button
                               onClick={() => handleEquip(ownedInventory.id)}
-                              disabled={ownedInventory.is_equipped}
-                              className="border-2 border-black bg-[#53FC18] px-5 py-3 text-xs font-black uppercase text-black disabled:bg-yellow-400"
+                              className={`border-2 border-black px-5 py-3 text-xs font-black uppercase text-black ${
+                                ownedInventory.is_equipped
+                                  ? "bg-yellow-400"
+                                  : "bg-[#53FC18]"
+                              }`}
                             >
-                              {ownedInventory.is_equipped ? "Equipped" : "Equip"}
+                              {ownedInventory.is_equipped
+                                ? "Equipped"
+                                : item.type === "avatar_border"
+                                  ? "Use Border"
+                                  : "Equip"}
                             </button>
                           ) : (
                             <button
@@ -234,9 +252,7 @@ export default function ShopPage() {
           </div>
 
           <div className="mt-16">
-            <h2 className="mb-6 text-2xl font-black uppercase">
-              My Inventory
-            </h2>
+            <h2 className="mb-6 text-2xl font-black uppercase">My Inventory</h2>
 
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {inventory.length === 0 ? (
@@ -246,11 +262,12 @@ export default function ShopPage() {
               ) : (
                 inventory.map((inv) => {
                   const item = inv.shop_items
+                  if (!item) return null
 
                   return (
                     <div
                       key={inv.id}
-                      className="border-2 border-black bg-[#0E1318] p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]"
+                      className={`border-2 bg-[#0E1318] p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${getRarityClass(item.rarity)}`}
                     >
                       <ItemPreview
                         item={item}
@@ -258,18 +275,19 @@ export default function ShopPage() {
                         username={profile?.username || "M"}
                       />
 
-                      <h3 className="mt-5 text-xl font-black uppercase">
-                        {item?.name}
+                      <h3 className="mt-4 text-lg font-black uppercase">
+                        {item.name}
                       </h3>
 
-                      <p className="mt-2 text-xs font-bold uppercase text-zinc-500">
-                        {item?.type} • {item?.rarity}
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        {item.type} • {item.rarity}
                       </p>
 
                       <button
                         onClick={() => handleEquip(inv.id)}
-                        disabled={inv.is_equipped}
-                        className="mt-5 w-full border-2 border-black bg-[#53FC18] py-3 text-xs font-black uppercase text-black disabled:bg-yellow-400"
+                        className={`mt-4 w-full border-2 border-black py-3 text-xs font-black uppercase text-black ${
+                          inv.is_equipped ? "bg-yellow-400" : "bg-[#53FC18]"
+                        }`}
                       >
                         {inv.is_equipped ? "Equipped" : "Equip"}
                       </button>
@@ -285,6 +303,27 @@ export default function ShopPage() {
   )
 }
 
+function FilterButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`border-2 border-black text-xs font-black uppercase ${
+        active ? "bg-[#53FC18] text-black" : "bg-[#191B1F] text-[#53FC18]"
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
 function ItemPreview({
   item,
   avatarUrl,
@@ -294,44 +333,66 @@ function ItemPreview({
   avatarUrl?: string
   username: string
 }) {
-  const type = item?.type
-
-  if (type === "avatar_border") {
+  if (item.type === "avatar_border") {
     return (
-      <div className="flex h-56 items-center justify-center border-2 border-black bg-[#191B1F] p-5">
+      <div className="flex h-36 items-center justify-center border-2 border-black bg-[#191B1F]">
         <AvatarFrame
           avatarUrl={avatarUrl}
           username={username}
           border={item}
-          size="shop"
+          size={92}
         />
       </div>
     )
   }
 
-  if (type === "badge") {
+  if (item.type === "badge") {
     return (
-      <div className="flex h-56 items-center justify-center border-2 border-black bg-[#191B1F] p-5">
-        <EquippedBadges badges={[item]} />
-      </div>
-    )
-  }
-
-  if (item?.image_url) {
-    return (
-      <div className="flex h-56 items-center justify-center border-2 border-black bg-[#191B1F] p-5">
-        <img
-          src={item.image_url}
-          alt={item.name}
-          className="h-full w-full object-contain"
-        />
+      <div className="flex h-36 items-center justify-center border-2 border-black bg-[#191B1F]">
+        <AnimatedBadge item={item} />
       </div>
     )
   }
 
   return (
-    <div className="flex h-56 items-center justify-center border-2 border-black bg-[#191B1F] text-xs font-black uppercase text-zinc-500">
-      Item Preview
+    <div className="flex h-36 items-center justify-center border-2 border-black bg-[#191B1F] text-xs font-black uppercase text-zinc-600">
+      No Preview
+    </div>
+  )
+}
+
+function AnimatedBadge({ item }: { item: any }) {
+  const metadata = parseMetadata(item.metadata)
+  const label = metadata.label || item.name
+  const isMythic = item.rarity === "mythic"
+
+  return (
+    <div className="relative flex flex-col items-center gap-3">
+      {item.image_url ? (
+        <img
+          src={item.image_url}
+          alt={item.name}
+          className={`h-20 w-20 object-contain ${
+            metadata.animation === "pulse" || metadata.glow || isMythic
+              ? "animate-pulse"
+              : ""
+          }`}
+        />
+      ) : (
+        <div className="flex h-20 w-20 items-center justify-center border-2 border-black bg-yellow-400 text-xl font-black text-black">
+          ★
+        </div>
+      )}
+
+      <div
+        className={`border-2 border-black px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+          isMythic
+            ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.8)] animate-pulse"
+            : "bg-[#53FC18] text-black"
+        }`}
+      >
+        {label}
+      </div>
     </div>
   )
 }

@@ -40,3 +40,8 @@ export async function equipItem(inventoryId: string) {
   const res = await api.patch(`/economy/inventory/${inventoryId}/equip`)
   return res.data
 }
+
+export async function getWalletTransactions() {
+  const res = await api.get("/economy/wallet/transactions")
+  return res.data
+}

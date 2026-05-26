@@ -104,3 +104,19 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background: #53fc18;
 }
+
+.input-gaming {
+  height: 48px;
+  width: 100%;
+  border: 2px solid black;
+  background: #191b1f;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  outline: none;
+}
+
+.input-gaming:focus {
+  border-color: #53fc18;
+}

@@ -1,19 +1,23 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import { ShieldAlert, X } from "lucide-react"
 import { socket } from "@/lib/socket"
+import { useAuthStore } from "@/store/auth.store"
 import {
-  closeReport,
   createReport,
   getMyActiveReport,
   getReportMessages,
   sendReportMessage,
 } from "@/services/report.service"
-import { useAuthStore } from "@/store/auth.store"
 
 export default function FloatingReportButton() {
+  const pathname = usePathname()
+
   const user = useAuthStore((state) => state.user)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const hasHydrated = useAuthStore((state) => state.hasHydrated)
 
   const [open, setOpen] = useState(false)
   const [report, setReport] = useState<any>(null)
@@ -22,29 +26,70 @@ export default function FloatingReportButton() {
   const [description, setDescription] = useState("")
   const [chatMessage, setChatMessage] = useState("")
   const [notice, setNotice] = useState("")
+  const [activeRoom, setActiveRoom] = useState<string | null>(null)
+
+  const hiddenPages =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/chat") ||
+    pathname.startsWith("/admin")
+
+  function resetState() {
+    if (activeRoom) {
+      socket.emit("leave_report", activeRoom)
+    }
+
+    setOpen(false)
+    setReport(null)
+    setMessages([])
+    setTitle("")
+    setDescription("")
+    setChatMessage("")
+    setNotice("")
+    setActiveRoom(null)
+  }
 
   async function loadActiveReport() {
+    if (!user?.id || !isAuthenticated) return
+
     try {
       const active = await getMyActiveReport()
       setReport(active)
 
       if (active?.id) {
         const data = await getReportMessages(active.id)
-        setMessages(data)
+        setMessages(data || [])
 
         if (!socket.connected) socket.connect()
+
+        if (activeRoom && activeRoom !== active.id) {
+          socket.emit("leave_report", activeRoom)
+        }
+
         socket.emit("join_report", active.id)
+        setActiveRoom(active.id)
+      } else {
+        setMessages([])
+        setActiveRoom(null)
       }
     } catch {
       setReport(null)
       setMessages([])
+      setActiveRoom(null)
     }
   }
 
   async function handleCreateReport(e: React.FormEvent) {
     e.preventDefault()
 
+    if (!title.trim()) {
+      setNotice("Judul laporan wajib diisi.")
+      return
+    }
+
     try {
+      setNotice("")
+
       const result = await createReport({
         title,
         description,
@@ -67,6 +112,8 @@ export default function FloatingReportButton() {
     if (!report?.id || !chatMessage.trim()) return
 
     try {
+      setNotice("")
+
       await sendReportMessage(report.id, chatMessage)
       setChatMessage("")
     } catch (error: any) {
@@ -74,52 +121,68 @@ export default function FloatingReportButton() {
     }
   }
 
-  async function handleCloseReport() {
-    if (!report?.id) return
+  useEffect(() => {
+    resetState()
+  }, [user?.id])
 
-    try {
-      await closeReport(report.id)
-      setReport(null)
-      setMessages([])
-      setNotice("Report ditutup. Kamu bisa membuat report baru.")
-    } catch (error: any) {
-      setNotice(error.response?.data?.message || "Gagal menutup report.")
+  useEffect(() => {
+    if (!open) return
+    if (!isAuthenticated || !user?.id) return
+
+    loadActiveReport()
+  }, [open, isAuthenticated, user?.id])
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      resetState()
+      return
     }
-  }
 
-  useEffect(() => {
-    if (open) loadActiveReport()
-  }, [open])
+    if (!socket.connected) socket.connect()
 
-  useEffect(() => {
-    if (!user?.id) return
+    function handleReportMessage(message: any) {
+      if (!message?.report_id) return
 
-    socket.connect()
-
-    socket.on("report_message_received", (message) => {
       setMessages((prev) => {
-        if (prev.some((item) => item.id === message.id)) return prev
+        const currentReportId = report?.id || activeRoom
+        if (message.report_id !== currentReportId) return prev
+
+        const exists = prev.some((item) => item.id === message.id)
+        if (exists) return prev
+
         return [...prev, message]
       })
-    })
+    }
 
-    socket.on("report_closed", () => {
-      setReport(null)
-      setMessages([])
-      setNotice("Report sudah ditutup.")
-    })
+    function handleReportClosed(closedReport: any) {
+      const currentReportId = report?.id || activeRoom
+
+      if (closedReport?.id === currentReportId) {
+        setReport(null)
+        setMessages([])
+        setActiveRoom(null)
+        setNotice("Report sudah ditutup oleh admin. Kamu bisa membuat report baru.")
+      }
+    }
+
+    socket.on("report_message_received", handleReportMessage)
+    socket.on("report_closed", handleReportClosed)
 
     return () => {
-      socket.off("report_message_received")
-      socket.off("report_closed")
+      socket.off("report_message_received", handleReportMessage)
+      socket.off("report_closed", handleReportClosed)
     }
-  }, [user?.id])
+  }, [isAuthenticated, user?.id, report?.id, activeRoom])
+
+  if (!hasHydrated) return null
+  if (!isAuthenticated || !user?.id) return null
+  if (hiddenPages) return null
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border-4 border-black bg-[#53FC18] text-black shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] hover:bg-[#6eff3b]"
+        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border-4 border-black bg-[#53FC18] text-black shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] transition hover:bg-[#6eff3b] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
       >
         <ShieldAlert size={28} />
       </button>
@@ -131,12 +194,17 @@ export default function FloatingReportButton() {
               <h2 className="text-lg font-black uppercase text-[#53FC18]">
                 Report Livechat
               </h2>
+
               <p className="text-[10px] font-black uppercase text-zinc-500">
-                Support ticket system
+                Satu report aktif per user.
               </p>
             </div>
 
-            <button onClick={() => setOpen(false)}>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="text-zinc-400 hover:text-white"
+            >
               <X size={20} />
             </button>
           </div>
@@ -148,19 +216,22 @@ export default function FloatingReportButton() {
           )}
 
           {!report ? (
-            <form onSubmit={handleCreateReport} className="flex flex-1 flex-col p-4">
+            <form
+              onSubmit={handleCreateReport}
+              className="flex flex-1 flex-col p-4"
+            >
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="JUDUL KELUHAN"
-                className="h-12 border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase outline-none"
+                className="h-12 border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18]"
               />
 
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="CERITAKAN KENDALA..."
-                className="mt-3 flex-1 resize-none border-2 border-black bg-[#191B1F] p-4 text-xs font-black uppercase outline-none"
+                className="mt-3 flex-1 resize-none border-2 border-black bg-[#191B1F] p-4 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18]"
               />
 
               <button className="mt-4 border-2 border-black bg-[#53FC18] py-3 text-xs font-black uppercase text-black">
@@ -173,35 +244,45 @@ export default function FloatingReportButton() {
                 <p className="text-xs font-black uppercase text-white">
                   {report.title}
                 </p>
+
                 <p className="text-[10px] font-black uppercase text-[#53FC18]">
                   Status: {report.status}
                 </p>
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
-                {messages.map((item) => {
-                  const mine = item.sender_id === user?.id
+                {messages.length === 0 ? (
+                  <div className="border-2 border-dashed border-black bg-[#191B1F] p-4 text-[10px] font-black uppercase text-zinc-500">
+                    Belum ada balasan. Tunggu admin masuk ke livechat.
+                  </div>
+                ) : (
+                  messages.map((item) => {
+                    const mine = item.sender_id === user?.id
 
-                  return (
-                    <div
-                      key={item.id}
-                      className={`flex ${mine ? "justify-end" : "justify-start"}`}
-                    >
+                    return (
                       <div
-                        className={`max-w-[80%] border-2 border-black p-3 text-xs font-bold uppercase ${
-                          mine
-                            ? "bg-[#53FC18] text-black"
-                            : "bg-[#191B1F] text-white"
+                        key={item.id}
+                        className={`flex ${
+                          mine ? "justify-end" : "justify-start"
                         }`}
                       >
-                        <p className="mb-1 text-[9px] font-black opacity-70">
-                          {item.sender_role}
-                        </p>
-                        {item.message}
+                        <div
+                          className={`max-w-[80%] border-2 border-black p-3 text-xs font-bold uppercase ${
+                            mine
+                              ? "bg-[#53FC18] text-black"
+                              : "bg-[#191B1F] text-white"
+                          }`}
+                        >
+                          <p className="mb-1 text-[9px] font-black opacity-70">
+                            {mine ? "YOU" : item.sender_role || "ADMIN"}
+                          </p>
+
+                          <p className="break-words">{item.message}</p>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                )}
               </div>
 
               <form
@@ -213,7 +294,7 @@ export default function FloatingReportButton() {
                     value={chatMessage}
                     onChange={(e) => setChatMessage(e.target.value)}
                     placeholder="KETIK PESAN..."
-                    className="h-11 flex-1 border-2 border-black bg-[#191B1F] px-3 text-xs font-black uppercase outline-none"
+                    className="h-11 flex-1 border-2 border-black bg-[#191B1F] px-3 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18]"
                   />
 
                   <button className="border-2 border-black bg-[#53FC18] px-4 text-xs font-black uppercase text-black">
@@ -221,6 +302,9 @@ export default function FloatingReportButton() {
                   </button>
                 </div>
 
+                <p className="mt-2 text-[9px] font-black uppercase text-zinc-500">
+                  Report hanya bisa ditutup oleh admin.
+                </p>
               </form>
             </>
           )}

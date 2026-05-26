@@ -11,10 +11,7 @@ import {
   uploadAvatar,
   uploadBanner,
 } from "@/services/profile.service"
-import {
-  getMyInventory,
-  equipItem,
-} from "@/services/economy.service"
+import { getMyInventory, equipItem } from "@/services/economy.service"
 
 interface Profile {
   id: string
@@ -57,22 +54,17 @@ export default function MyProfilePage() {
   })
 
   const equippedAvatarBorder = inventory.find(
-    (item) =>
-      item.is_equipped &&
-      item.shop_items?.type === "avatar_border"
+    (item) => item.is_equipped && item.shop_items?.type === "avatar_border"
   )?.shop_items
 
   const equippedBadges = inventory
-    .filter(
-      (item) =>
-        item.is_equipped &&
-        item.shop_items?.type === "badge"
-    )
+    .filter((item) => item.is_equipped && item.shop_items?.type === "badge")
     .map((item) => item.shop_items)
 
   async function loadProfile() {
     try {
       setLoading(true)
+      setMessage("")
 
       const [profileData, inventoryData] = await Promise.all([
         getMyProfile(),
@@ -80,24 +72,29 @@ export default function MyProfilePage() {
       ])
 
       setProfile(profileData)
-      setInventory(inventoryData || [])
+      setInventory(Array.isArray(inventoryData) ? inventoryData : [])
 
       setForm({
-        username: profileData.username || "",
-        display_name: profileData.display_name || "",
-        bio: profileData.bio || "",
-        gender: profileData.gender || "",
-        favorite_game: profileData.favorite_game || "",
-        game_rank: profileData.game_rank || "",
-        preferred_role: profileData.preferred_role || "",
-        region: profileData.region || "",
+        username: profileData?.username || "",
+        display_name: profileData?.display_name || "",
+        bio: profileData?.bio || "",
+        gender: profileData?.gender || "",
+        favorite_game: profileData?.favorite_game || "",
+        game_rank: profileData?.game_rank || "",
+        preferred_role: profileData?.preferred_role || "",
+        region: profileData?.region || "",
       })
     } catch (error: any) {
-      console.log(error)
       setMessage(error.response?.data?.message || "Gagal mengambil profile")
+      setProfile(null)
     } finally {
       setLoading(false)
     }
+  }
+
+  async function reloadInventoryOnly() {
+    const inventoryData = await getMyInventory()
+    setInventory(Array.isArray(inventoryData) ? inventoryData : [])
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -109,7 +106,20 @@ export default function MyProfilePage() {
 
       const res = await updateMyProfile(form)
 
-      setProfile(res.profile)
+      const updatedProfile = res.profile || res
+      setProfile(updatedProfile)
+
+      setForm({
+        username: updatedProfile?.username || "",
+        display_name: updatedProfile?.display_name || "",
+        bio: updatedProfile?.bio || "",
+        gender: updatedProfile?.gender || "",
+        favorite_game: updatedProfile?.favorite_game || "",
+        game_rank: updatedProfile?.game_rank || "",
+        preferred_role: updatedProfile?.preferred_role || "",
+        region: updatedProfile?.region || "",
+      })
+
       setMessage("Profile berhasil diperbarui")
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Gagal update profile")
@@ -127,8 +137,9 @@ export default function MyProfilePage() {
       setMessage("")
 
       const res = await uploadAvatar(file)
+      const updatedProfile = res.profile || res
 
-      setProfile(res.profile)
+      setProfile(updatedProfile)
       setMessage("Avatar berhasil diupload")
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Upload avatar gagal")
@@ -146,8 +157,9 @@ export default function MyProfilePage() {
       setMessage("")
 
       const res = await uploadBanner(file)
+      const updatedProfile = res.profile || res
 
-      setProfile(res.profile)
+      setProfile(updatedProfile)
       setMessage("Banner berhasil diupload")
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Upload banner gagal")
@@ -161,9 +173,9 @@ export default function MyProfilePage() {
       setMessage("")
 
       await equipItem(inventoryId)
+      await reloadInventoryOnly()
 
-      setMessage("Item berhasil dipakai")
-      await loadProfile()
+      setMessage("Item berhasil diperbarui")
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Gagal memakai item")
     }
@@ -203,17 +215,21 @@ export default function MyProfilePage() {
 
         <section className="flex-1 overflow-y-auto">
           <div className="relative h-[320px] overflow-hidden border-b-4 border-black bg-[#191B1F]">
-            {profile?.banner_url && (
+            {profile?.banner_url ? (
               <img
                 src={profile.banner_url}
                 alt="Banner"
                 className="absolute inset-0 h-full w-full object-cover opacity-40"
               />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-xs font-black uppercase tracking-widest text-zinc-700">
+                [ NO CUSTOM BANNER ]
+              </div>
             )}
 
             <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11] to-transparent opacity-80" />
 
-            <label className="absolute bottom-6 right-8 cursor-pointer border-2 border-black bg-[#0B0E11] px-5 py-3 text-xs font-black uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#191B1F] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+            <label className="absolute bottom-6 right-8 cursor-pointer border-2 border-black bg-[#0B0E11] px-5 py-3 text-xs font-black uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#191B1F]">
               {uploadingBanner ? "UPLOADING..." : "CHANGE BANNER"}
 
               <input
@@ -236,7 +252,11 @@ export default function MyProfilePage() {
                     size="large"
                   />
 
-                  <div className="absolute -bottom-1 -right-1 h-6 w-6 border-4 border-black bg-[#53FC18]" />
+                  <div
+                    className={`absolute -bottom-1 -right-1 h-6 w-6 border-4 border-black ${
+                      profile?.online_status ? "bg-[#53FC18]" : "bg-zinc-600"
+                    }`}
+                  />
 
                   <label className="absolute -bottom-8 left-1/2 z-20 -translate-x-1/2 cursor-pointer whitespace-nowrap border-2 border-black bg-black px-4 py-2 text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition hover:text-[#53FC18]">
                     {uploadingAvatar ? "UPLOADING..." : "EDIT PHOTO"}
@@ -252,7 +272,7 @@ export default function MyProfilePage() {
 
                 <div className="pt-4 lg:pt-0">
                   <div className="mb-3 inline-flex border border-black bg-[#53FC18]/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-[#53FC18]">
-                    ONLINE NOW
+                    {profile?.online_status ? "ONLINE NOW" : "OFFLINE"}
                   </div>
 
                   <h1 className="text-5xl font-black uppercase tracking-tight text-white">
@@ -380,7 +400,7 @@ export default function MyProfilePage() {
 
                 <button
                   disabled={saving}
-                  className="mt-8 border-2 border-black bg-[#53FC18] px-8 py-4 text-xs font-black uppercase tracking-widest text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] disabled:opacity-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                  className="mt-8 border-2 border-black bg-[#53FC18] px-8 py-4 text-xs font-black uppercase tracking-widest text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] disabled:opacity-50"
                 >
                   {saving ? "SAVING..." : "SAVE PROFILE"}
                 </button>
@@ -418,7 +438,7 @@ export default function MyProfilePage() {
               </h2>
 
               <p className="mt-2 text-xs font-bold uppercase text-zinc-500">
-                Pilih item yang sudah kamu beli untuk dipakai di profile.
+                Avatar border hanya 1 yang aktif. Badge bisa dipakai banyak, maksimal 5.
               </p>
 
               <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -480,11 +500,20 @@ export default function MyProfilePage() {
 
                         <button
                           type="button"
-                          disabled={item.is_equipped}
                           onClick={() => handleEquipInventory(item.id)}
-                          className="mt-5 w-full border-2 border-black bg-[#53FC18] py-3 text-xs font-black uppercase text-black disabled:bg-yellow-400"
+                          className={`mt-5 w-full border-2 border-black py-3 text-xs font-black uppercase text-black ${
+                            item.is_equipped ? "bg-yellow-400" : "bg-[#53FC18]"
+                          }`}
                         >
-                          {item.is_equipped ? "SEDANG DIPAKAI" : "PAKAI ITEM"}
+                          {item.is_equipped
+                            ? isBadge
+                              ? "LEPAS BADGE"
+                              : "SEDANG DIPAKAI"
+                            : isBorder
+                              ? "PAKAI BORDER"
+                              : isBadge
+                                ? "PAKAI BADGE"
+                                : "PAKAI ITEM"}
                         </button>
                       </div>
                     )

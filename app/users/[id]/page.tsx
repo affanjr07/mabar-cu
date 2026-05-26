@@ -10,22 +10,23 @@ import { api } from "@/lib/axios"
 interface PublicProfile {
   id: string
   username: string
-  display_name: string
-  avatar_url?: string
-  banner_url?: string
-  bio?: string
-  gender?: string
-  favorite_game?: string
-  game_rank?: string
-  preferred_role?: string
-  region?: string
-  online_status: boolean
-  last_online_text?: string
-  followers_count: number
-  following_count: number
-  average_rating: number
-  total_ratings: number
+  display_name?: string
+  avatar_url?: string | null
+  banner_url?: string | null
+  bio?: string | null
+  gender?: string | null
+  favorite_game?: string | null
+  game_rank?: string | null
+  preferred_role?: string | null
+  region?: string | null
+  online_status?: boolean
+  last_online_text?: string | null
+  followers_count?: number
+  following_count?: number
+  average_rating?: number
+  total_ratings?: number
   badges?: string[]
+  is_following?: boolean
 }
 
 export default function UserProfilePage() {
@@ -38,6 +39,7 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [message, setMessage] = useState("")
+  const [isFollowing, setIsFollowing] = useState(false)
 
   async function loadProfile() {
     if (!identifier) return
@@ -47,10 +49,13 @@ export default function UserProfilePage() {
       setMessage("")
 
       const data = await getPublicProfile(identifier)
+
       setProfile(data)
+      setIsFollowing(Boolean(data?.is_following))
     } catch (error: any) {
       console.log("PROFILE FETCH ERROR:", error.response?.data || error.message)
       setProfile(null)
+      setIsFollowing(false)
     } finally {
       setLoading(false)
     }
@@ -63,12 +68,17 @@ export default function UserProfilePage() {
       setActionLoading(true)
       setMessage("")
 
-      await api.post(`/social/follow/${profile.id}`)
+      if (isFollowing) {
+        await api.delete(`/social/follow/${profile.id}`)
+        setMessage("PLAYER BERHASIL DI-UNFOLLOW.")
+      } else {
+        await api.post(`/social/follow/${profile.id}`)
+        setMessage("⚡ BERHASIL FOLLOW PLAYER INI!")
+      }
 
-      setMessage("⚡ BERHASIL FOLLOW PLAYER INI!")
       await loadProfile()
     } catch (error: any) {
-      setMessage(error.response?.data?.message || "GAGAL FOLLOW PLAYER.")
+      setMessage(error.response?.data?.message || "AKSI FOLLOW GAGAL.")
     } finally {
       setActionLoading(false)
     }
@@ -77,9 +87,8 @@ export default function UserProfilePage() {
   async function handleBlock() {
     if (!profile) return
 
-    const confirmBlock = confirm(
-      `YAKIN INGIN BLOCK ${profile.display_name?.toUpperCase() || profile.username.toUpperCase()}?`
-    )
+    const targetName = profile.display_name || profile.username
+    const confirmBlock = confirm(`YAKIN INGIN BLOCK ${targetName.toUpperCase()}?`)
 
     if (!confirmBlock) return
 
@@ -128,13 +137,15 @@ export default function UserProfilePage() {
         <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
           <Sidebar />
           <section className="flex flex-1 items-center justify-center p-6">
-            <div className="border-4 border-black bg-[#0E1318] p-8 text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] max-w-md w-full">
+            <div className="w-full max-w-md border-4 border-black bg-[#0E1318] p-8 text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
               <h1 className="text-2xl font-black uppercase tracking-tight text-red-500">
                 ⚠️ PROFILE TIDAK DITEMUKAN
               </h1>
+
               <p className="mt-4 text-xs font-bold uppercase leading-relaxed text-zinc-500">
                 Player ini tidak tersedia, berganti username, atau sudah dihapus dari sistem database.
               </p>
+
               <button
                 onClick={() => router.push("/dashboard")}
                 className="mt-6 flex h-12 w-full items-center justify-center border-2 border-black bg-white text-xs font-black uppercase tracking-widest text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-zinc-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
@@ -154,7 +165,6 @@ export default function UserProfilePage() {
         <Sidebar />
 
         <section className="flex-1 overflow-y-auto">
-          {/* BRUTALIST BANNER CONTRAST */}
           <div className="relative h-[260px] border-b-4 border-black bg-zinc-900">
             {profile.banner_url ? (
               <img
@@ -163,18 +173,17 @@ export default function UserProfilePage() {
                 className="h-full w-full object-cover opacity-40 grayscale"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-[#0E1318] text-xs font-black text-zinc-700 uppercase tracking-widest">
+              <div className="flex h-full w-full items-center justify-center bg-[#0E1318] text-xs font-black uppercase tracking-widest text-zinc-700">
                 [ NO CUSTOM BANNER DEPLOYED ]
               </div>
             )}
+
             <div className="absolute inset-0 bg-black/30" />
           </div>
 
           <div className="relative px-6 pb-16 lg:px-10">
-            {/* HERO PROFILE HEADER */}
             <div className="-mt-20 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-                {/* SQUARE AVATAR WITH HARD STATUS INDICATOR */}
                 <div className="relative h-40 w-40 shrink-0 border-4 border-black bg-[#191B1F] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                   {profile.avatar_url ? (
                     <img
@@ -187,11 +196,12 @@ export default function UserProfilePage() {
                       {profile.username.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  
-                  {/* SQUARE STATUS BADGE */}
+
                   <div
-                    className={`absolute -bottom-2 -right-2 border-2 border-black px-2 py-0.5 text-[9px] font-black uppercase tracking-tight text-black ${
-                      profile.online_status ? "bg-[#53FC18]" : "bg-zinc-500 text-white"
+                    className={`absolute -bottom-2 -right-2 border-2 border-black px-2 py-0.5 text-[9px] font-black uppercase tracking-tight ${
+                      profile.online_status
+                        ? "bg-[#53FC18] text-black"
+                        : "bg-zinc-500 text-white"
                     }`}
                   >
                     {profile.online_status ? "LIVE" : "OFF"}
@@ -199,10 +209,17 @@ export default function UserProfilePage() {
                 </div>
 
                 <div className="flex-1">
-                  <div className={`mb-3 inline-flex border border-black px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
-                    profile.online_status ? "bg-[#53FC18]/10 text-[#53FC18]" : "bg-zinc-800 text-zinc-400"
-                  }`}>
-                    // {profile.online_status ? "ONLINE NOW" : profile.last_online_text?.toUpperCase() || "OFFLINE"}
+                  <div
+                    className={`mb-3 inline-flex border border-black px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+                      profile.online_status
+                        ? "bg-[#53FC18]/10 text-[#53FC18]"
+                        : "bg-zinc-800 text-zinc-400"
+                    }`}
+                  >
+                    //{" "}
+                    {profile.online_status
+                      ? "ONLINE NOW"
+                      : profile.last_online_text?.toUpperCase() || "OFFLINE"}
                   </div>
 
                   <h1 className="text-4xl font-black uppercase tracking-tight md:text-5xl">
@@ -217,7 +234,6 @@ export default function UserProfilePage() {
                     {profile.bio || "PLAYER INI BELUM MENULIS BIO SPESIFIKASI."}
                   </p>
 
-                  {/* CUSTOM METADATA TAGS */}
                   <div className="mt-6 flex flex-wrap gap-2">
                     <Tag color="green">{profile.game_rank || "UNRANKED"}</Tag>
                     <Tag>{profile.preferred_role || "NO PREFERRED ROLE"}</Tag>
@@ -227,14 +243,21 @@ export default function UserProfilePage() {
                 </div>
               </div>
 
-              {/* ACTION COMMANDS */}
               <div className="flex flex-wrap gap-3">
                 <button
                   disabled={actionLoading}
                   onClick={handleFollow}
-                  className="flex h-12 items-center justify-center border-2 border-black bg-[#53FC18] px-6 text-xs font-black uppercase tracking-widest text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] disabled:opacity-40 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                  className={`flex h-12 items-center justify-center border-2 border-black px-6 text-xs font-black uppercase tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-40 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] ${
+                    isFollowing
+                      ? "bg-white text-black hover:bg-zinc-200"
+                      : "bg-[#53FC18] text-black hover:bg-[#6eff3b]"
+                  }`}
                 >
-                  {actionLoading ? "LOADING..." : "FOLLOW PLAYER"}
+                  {actionLoading
+                    ? "LOADING..."
+                    : isFollowing
+                      ? "UNFOLLOW"
+                      : "FOLLOW PLAYER"}
                 </button>
 
                 <button
@@ -254,24 +277,24 @@ export default function UserProfilePage() {
               </div>
             </div>
 
-            {/* ALERT BOX */}
             {message && (
               <div className="mt-10 border-2 border-black bg-[#142A14] p-4 text-xs font-black uppercase tracking-wider text-[#53FC18] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                 {message}
               </div>
             )}
 
-            {/* METRICS STATS */}
             <div className="mt-12 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <Stat label="FOLLOWERS" value={profile.followers_count || 0} />
               <Stat label="FOLLOWING" value={profile.following_count || 0} />
-              <Stat label="AVG RATING" value={`★ ${profile.average_rating || 0}`} isHighlight={true} />
+              <Stat
+                label="AVG RATING"
+                value={`★ ${profile.average_rating || 0}`}
+                isHighlight
+              />
               <Stat label="TOTAL REVIEWS" value={profile.total_ratings || 0} />
             </div>
 
-            {/* EXPANDED CONTENT DATA */}
             <div className="mt-8 grid gap-6 xl:grid-cols-3">
-              {/* BADGES CONTAINER */}
               <div className="border-2 border-black bg-[#0E1318] p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <h2 className="text-sm font-black uppercase tracking-widest text-zinc-400">
                   // EARNED BADGES
@@ -295,7 +318,6 @@ export default function UserProfilePage() {
                 </div>
               </div>
 
-              {/* PLAYER INFO PANEL */}
               <div className="border-2 border-black bg-[#0E1318] p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] xl:col-span-2">
                 <h2 className="text-sm font-black uppercase tracking-widest text-zinc-400">
                   // PLAYER PROFILE ATTRIBUTES
@@ -311,16 +333,24 @@ export default function UserProfilePage() {
                 </div>
               </div>
 
-              {/* RECENT ACTIVITY DATA */}
               <div className="border-2 border-black bg-[#0E1318] p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] xl:col-span-3">
                 <h2 className="text-sm font-black uppercase tracking-widest text-zinc-400">
                   // SYSTEM RECENT ACTIVITY LOGS
                 </h2>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-3">
-                  <Activity title="PARTY HISTORY" value="BELUM ADA REKAM DATA JEJAK PARTY." />
-                  <Activity title="RATINGS RECEIVED" value="BELUM ADA REVIEW ATAU KOMENTAR MASUK." />
-                  <Activity title="RECENT ARENA MATCH" value="TIDAK ADA AKTIVITAS KOMPETISI TERBARU." />
+                  <Activity
+                    title="PARTY HISTORY"
+                    value="BELUM ADA REKAM DATA JEJAK PARTY."
+                  />
+                  <Activity
+                    title="RATINGS RECEIVED"
+                    value="BELUM ADA REVIEW ATAU KOMENTAR MASUK."
+                  />
+                  <Activity
+                    title="RECENT ARENA MATCH"
+                    value="TIDAK ADA AKTIVITAS KOMPETISI TERBARU."
+                  />
                 </div>
               </div>
             </div>
@@ -331,7 +361,6 @@ export default function UserProfilePage() {
   )
 }
 
-/* CUSTOM BRUTALIST TAG BADGE */
 function Tag({
   children,
   color,
@@ -352,7 +381,6 @@ function Tag({
   )
 }
 
-/* BOX STATISTIK DATA */
 function Stat({
   label,
   value,
@@ -363,12 +391,12 @@ function Stat({
   isHighlight?: boolean
 }) {
   return (
-    <div className={`border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
-      isHighlight ? "bg-[#1d3511] text-[#53FC18]" : "bg-[#0E1318] text-white"
-    }`}>
-      <h2 className="text-4xl font-black uppercase tracking-tighter">
-        {value}
-      </h2>
+    <div
+      className={`border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
+        isHighlight ? "bg-[#1d3511] text-[#53FC18]" : "bg-[#0E1318] text-white"
+      }`}
+    >
+      <h2 className="text-4xl font-black uppercase tracking-tighter">{value}</h2>
       <p className="mt-2 text-[10px] font-black uppercase tracking-wider text-zinc-500">
         {label}
       </p>
@@ -376,34 +404,26 @@ function Stat({
   )
 }
 
-/* METRICS CELL */
 function Info({
   label,
   value,
 }: {
   label: string
-  value?: string | number
+  value?: string | number | null
 }) {
   return (
     <div className="border-2 border-black bg-[#191B1F] p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
       <p className="text-[9px] font-black uppercase tracking-wider text-zinc-500">
         {label}
       </p>
-      <p className="mt-1 text-xs font-black uppercase tracking-tight text-white truncate">
+      <p className="mt-1 truncate text-xs font-black uppercase tracking-tight text-white">
         {value || "[ NOT SPECIFIED ]"}
       </p>
     </div>
   )
 }
 
-/* LOG DATA BOX */
-function Activity({
-  title,
-  value,
-}: {
-  title: string
-  value: string
-}) {
+function Activity({ title, value }: { title: string; value: string }) {
   return (
     <div className="border-2 border-black bg-[#191B1F] p-5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
       <h3 className="text-xs font-black uppercase tracking-wider text-[#53FC18]">
