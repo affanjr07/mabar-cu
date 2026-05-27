@@ -249,7 +249,7 @@ export default function Sidebar() {
                 onClick={handleLogout}
                 className="flex-1 h-12 border-2 border-black bg-red-600 text-xs font-black uppercase text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-red-500 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
               >
-                Ya, Keluar
+                Ya, Kelua
               </button>
             </div>
 
