@@ -362,7 +362,6 @@ export default function DashboardPage() {
                           avatarBorder={player.equipped_avatar_border}
                           game={player.favorite_game}
                           region={player.region}
-                          rating={player.average_rating}
                           pro={player.role === "pro_player"}
                           lastOnlineText={
                             player.online_status
