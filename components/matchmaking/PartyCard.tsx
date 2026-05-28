@@ -14,10 +14,10 @@ interface PartyMember {
   profiles?: {
     username?: string
     display_name?: string
-    avatar_url?: string
+    avatar_url?: string | null
     online_status?: boolean
     equipped_avatar_border?: string | AvatarBorder | null
-  }
+  } | null
 }
 
 interface PartyCardProps {
@@ -183,7 +183,6 @@ export default function PartyCard({
       <div className="mt-6 flex flex-wrap gap-5">
         {[...Array(maxPlayers)].map((_, index) => {
           const member = members[index]
-
           return <MemberAvatar key={index} member={member} />
         })}
       </div>
@@ -239,24 +238,26 @@ export default function PartyCard({
 function MemberAvatar({ member }: { member?: PartyMember }) {
   if (!member) {
     return (
-      <div className="flex h-16 w-16 items-center justify-center border-2 border-black bg-[#191B1F] text-xl font-black text-zinc-600">
-        +
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex h-16 w-16 items-center justify-center border-2 border-black bg-[#191B1F] text-xl font-black text-zinc-600">
+          +
+        </div>
+
+        <p className="max-w-[70px] truncate text-center text-[9px] font-black uppercase text-zinc-600">
+          EMPTY
+        </p>
       </div>
     )
   }
 
   const profile = member.profiles
 
-const authUser = user as any
+  const displayName =
+    profile?.username ||
+    profile?.display_name ||
+    "Player"
 
-const displayName =
-  authUser?.display_name ||
-  authUser?.username ||
-  authUser?.email?.split("@")[0] ||
-  "Player"
-
-  const avatarUrl = profile?.avatar_url
-
+  const avatarUrl = profile?.avatar_url || null
   const avatarBorder = profile?.equipped_avatar_border
 
   const borderUrl =
@@ -303,6 +304,12 @@ const displayName =
       {member.is_owner && (
         <span className="absolute -top-3 left-1/2 z-30 -translate-x-1/2 border border-black bg-yellow-400 px-1 text-[8px] font-black text-black">
           OWNER
+        </span>
+      )}
+
+      {member.role_in_game && (
+        <span className="max-w-[78px] truncate border border-black bg-[#0B0E11] px-1.5 py-0.5 text-[8px] font-black uppercase text-[#53FC18]">
+          {member.role_in_game}
         </span>
       )}
 
