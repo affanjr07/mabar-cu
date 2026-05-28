@@ -107,11 +107,13 @@ export default function Sidebar() {
       : []),
   ]
 
-  const displayName =
-    user?.display_name ||
-    senderName ||
-    user?.email?.split("@")[0] ||
-    "Player"
+const authUser = user as any
+
+const displayName =
+  authUser?.display_name ||
+  authUser?.username ||
+  authUser?.email?.split("@")[0] ||
+  "Player"
 
   async function handleLogout() {
     try {

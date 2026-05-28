@@ -65,12 +65,13 @@ export default function Navbar() {
       : []),
   ]
 
-  // Sinkronisasi fallback nama tampilan user
-  const displayName =
-    user?.display_name ||
-    user?.username ||
-    user?.email?.split("@")[0] ||
-    "Player"
+const authUser = user as any
+
+const displayName =
+  authUser?.display_name ||
+  authUser?.username ||
+  authUser?.email?.split("@")[0] ||
+  "Player"
 
   async function handleLogout() {
     try {

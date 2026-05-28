@@ -247,8 +247,13 @@ function MemberAvatar({ member }: { member?: PartyMember }) {
 
   const profile = member.profiles
 
-  const displayName =
-    profile?.display_name || profile?.username || member.user_id || "Player"
+const authUser = user as any
+
+const displayName =
+  authUser?.display_name ||
+  authUser?.username ||
+  authUser?.email?.split("@")[0] ||
+  "Player"
 
   const avatarUrl = profile?.avatar_url
 
