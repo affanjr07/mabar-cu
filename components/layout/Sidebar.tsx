@@ -109,7 +109,7 @@ export default function Sidebar() {
 
   const displayName =
     user?.display_name ||
-    user?.username ||
+    senderName ||
     user?.email?.split("@")[0] ||
     "Player"
 

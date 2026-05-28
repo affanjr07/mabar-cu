@@ -254,7 +254,7 @@ export default function RoomChatPage() {
       />
     ) : (
       <div className="flex h-full w-full items-center justify-center text-sm font-black uppercase text-black">
-        {(senderName || user?.username || "Y").charAt(0).toUpperCase()}
+        {(senderName || "Y").charAt(0).toUpperCase()}
       </div>
     )}
   </div>
