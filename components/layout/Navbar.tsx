@@ -50,6 +50,13 @@ export default function Navbar() {
     }
   }
 
+  // LOGIKAL PENYARINGAN PATH:
+  // Jika rute URL saat ini BUKAN halaman beranda utama ('/'), Navbar akan mengembalikan nilai null (tidak merender apapun).
+  // Dengan ini, halaman chat, dashboard, dll yang memakai layout global tidak akan menabrak header ini.
+  if (pathname !== "/") {
+    return null
+  }
+
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b-2 border-[#191B1F] bg-[#0B0E11] font-mono">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
