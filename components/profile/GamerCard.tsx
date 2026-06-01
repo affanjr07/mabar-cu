@@ -13,10 +13,10 @@ interface GamerCardProps {
   game?: string
   region?: string
   pro?: boolean
-  winStreak?: number // Data win streak penambah estetika kompetitif
+  winStreak?: number
   lastOnlineText?: string
   onViewProfile?: () => void
-  onChat?: () => void // Handler fungsi klik chat
+  onChat?: () => void
 }
 
 export default function GamerCard({
@@ -30,7 +30,7 @@ export default function GamerCard({
   game,
   region,
   pro,
-  winStreak = 3, // Default fallback jika data tidak dikirim
+  winStreak = 3,
   lastOnlineText,
   onViewProfile,
   onChat,
@@ -41,105 +41,102 @@ export default function GamerCard({
       : avatarBorder?.image_url
 
   return (
-    <div className="group relative flex flex-col justify-between border-2 border-black bg-[#0E1318] p-5 text-left font-mono shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#53FC18] hover:shadow-[6px_6px_0px_0px_rgba(83,252,24,0.15)] w-full">
+    <div className="group relative flex h-full flex-col justify-between border-2 border-black bg-[#0E1318] p-3 sm:p-5 text-left font-mono shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#53FC18] hover:shadow-[5px_5px_0px_0px_rgba(83,252,24,0.15)] w-full">
       
       <div>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-4 sm:gap-5">
-            
-            {/* AVATAR WRAPPER */}
-            <div className="relative flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center">
-              <div className="relative z-10 h-16 w-16 sm:h-20 sm:w-20 overflow-hidden border-2 border-black bg-[#191B1F]">
-                {avatar ? (
-                  <img
-                    src={avatar}
-                    alt={username}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xl sm:text-2xl font-black uppercase text-white">
-                    {username.charAt(0)}
-                  </div>
-                )}
-              </div>
-
-              {borderUrl && (
+        <div className="flex items-start gap-2.5 sm:gap-4">
+          
+          {/* AVATAR WRAPPER - Diperkecil untuk mobile agar muat 2 kolom */}
+          <div className="relative flex h-14 w-14 sm:h-20 sm:w-20 shrink-0 items-center justify-center">
+            <div className="relative z-10 h-11 w-11 sm:h-16 sm:w-16 overflow-hidden border-2 border-black bg-[#191B1F]">
+              {avatar ? (
                 <img
-                  src={borderUrl}
-                  alt="avatar border"
-                  className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-24 w-24 sm:h-28 sm:w-28 -translate-x-1/2 -translate-y-1/2 object-contain"
+                  src={avatar}
+                  alt={username}
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
-              )}
-
-              {online && (
-                <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-30 h-3 w-3 sm:h-4 sm:w-4 border-2 border-black bg-[#53FC18] animate-pulse" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-base sm:text-xl font-black uppercase text-white">
+                  {username.charAt(0)}
+                </div>
               )}
             </div>
 
-            {/* USER INFO */}
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h2 className="text-base sm:text-lg font-black uppercase tracking-tight text-white group-hover:text-[#53FC18] transition-colors truncate">
-                  {username}
-                </h2>
+            {borderUrl && (
+              <img
+                src={borderUrl}
+                alt="avatar border"
+                className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-16 w-16 sm:h-22 sm:w-22 -translate-x-1/2 -translate-y-1/2 object-contain"
+              />
+            )}
 
-                {pro && (
-                  <div className="border border-black bg-[#53FC18] px-1 py-0.5 text-[8px] font-black uppercase text-black animate-bounce [animation-duration:3s]">
-                    PRO
-                  </div>
-                )}
-              </div>
+            {online && (
+              <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 z-30 h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 border border-black bg-[#53FC18] animate-pulse" />
+            )}
+          </div>
 
-              <p className="mt-0.5 text-xs font-bold uppercase tracking-wider text-zinc-500 truncate">
-                {rank}
+          {/* USER INFO - Ditambahkan truncate ketat agar tidak merusak layout */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1 max-w-full">
+              <h2 className="text-sm sm:text-base font-black uppercase tracking-tight text-white group-hover:text-[#53FC18] transition-colors truncate">
+                {username}
+              </h2>
+
+              {pro && (
+                <div className="shrink-0 border border-black bg-[#53FC18] px-0.5 text-[7px] sm:text-[8px] font-black uppercase text-black animate-bounce [animation-duration:3s]">
+                  PRO
+                </div>
+              )}
+            </div>
+
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-zinc-500 truncate">
+              {rank}
+            </p>
+
+            {game && (
+              <p className="mt-0.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wide text-[#53FC18] truncate">
+                🎮 {game}
               </p>
+            )}
 
-              {game && (
-                <p className="mt-1 text-[11px] font-black uppercase tracking-wide text-[#53FC18] truncate">
-                  🎮 {game}
-                </p>
-              )}
-
-              {!online && lastOnlineText && (
-                <p className="mt-1 text-[10px] font-black uppercase text-zinc-500 truncate">
-                  {lastOnlineText}
-                </p>
-              )}
-            </div>
+            {!online && lastOnlineText && (
+              <p className="mt-0.5 text-[9px] sm:text-[10px] font-black uppercase text-zinc-500 truncate">
+                {lastOnlineText}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* METADATA TAGS & WIN STREAK BADGE */}
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          <div className="border border-black bg-[#191B1F] px-2.5 py-1 text-[10px] font-black uppercase text-[#53FC18]">
+        {/* METADATA TAGS & WIN STREAK BADGE - Wrap aman untuk layar kecil */}
+        <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-1 sm:gap-2">
+          <div className="border border-black bg-[#191B1F] px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[9px] sm:text-[10px] font-black uppercase text-[#53FC18] truncate max-w-[80px] sm:max-w-none">
             {role}
           </div>
 
-          <div className="border border-black bg-[#191B1F] px-2.5 py-1 text-[10px] font-black uppercase text-zinc-400 flex items-center gap-1">
-            <MapPin size={10} />
-            <span className="truncate max-w-[70px]">{region || "IDN"}</span>
+          <div className="border border-black bg-[#191B1F] px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[9px] sm:text-[10px] font-black uppercase text-zinc-400 flex items-center gap-0.5 sm:gap-1">
+            <MapPin size={8} className="sm:size-[10px]" />
+            <span className="truncate max-w-[40px] sm:max-w-[70px]">{region || "IDN"}</span>
           </div>
 
-          {/* IMPLEMENTASI WIN STREAK BADGE */}
           {winStreak > 0 && (
-            <div className="border border-red-500/30 bg-red-950/20 px-2.5 py-1 text-[10px] font-black uppercase text-red-500 flex items-center gap-0.5 shadow-[1px_1px_0px_0px_rgba(239,68,68,0.2)]">
-              <Flame size={11} className="fill-red-500 text-red-500 animate-pulse" />
-              <span>{winStreak} WINSTREAK</span>
+            <div className="border border-red-500/30 bg-red-950/20 px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[9px] sm:text-[10px] font-black uppercase text-red-500 flex items-center gap-0.5 shadow-[1px_1px_0px_0px_rgba(239,68,68,0.2)]">
+              <Flame size={9} className="sm:size-[11px] fill-red-500 text-red-500 animate-pulse shrink-0" />
+              <span className="truncate max-w-[55px] sm:max-w-none">{winStreak} WS</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* ACTION BUTTONS */}
-      <div className="mt-6 grid grid-cols-2 gap-3">
+      {/* ACTION BUTTONS - Responsif, text mengecil di mobile */}
+      <div className="mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3">
         <button 
           onClick={() => {
             if (!id) return alert("Room chat tidak tersedia")
             onChat?.()
           }}
-          className="flex h-11 items-center justify-center gap-1.5 border-2 border-black bg-[#53FC18] text-xs font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:bg-[#6eff3b]"
+          className="flex h-9 sm:h-11 items-center justify-center gap-1 border-2 border-black bg-[#53FC18] text-[10px] sm:text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:bg-[#6eff3b]"
         >
-          <MessageSquare size={13} className="stroke-[2.5]" />
+          <MessageSquare size={11} className="sm:size-[13px] stroke-[2.5]" />
           Chat
         </button>
 
@@ -148,9 +145,9 @@ export default function GamerCard({
             if (!id) return alert("ID player tidak ditemukan")
             onViewProfile?.()
           }}
-          className="flex h-11 items-center justify-center gap-1.5 border-2 border-[#191B1F] bg-[#0E1318] text-xs font-black uppercase text-white transition-colors hover:bg-[#191B1F] hover:border-zinc-700"
+          className="flex h-9 sm:h-11 items-center justify-center gap-1 border-2 border-[#191B1F] bg-[#0E1318] text-[10px] sm:text-xs font-black uppercase text-white transition-colors hover:bg-[#191B1F] hover:border-zinc-700"
         >
-          <User size={13} />
+          <User size={11} className="sm:size-[13px]" />
           Profile
         </button>
       </div>
