@@ -253,54 +253,54 @@ export default function UserProfilePage() {
             <div className="-mt-20 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
                 <div className="relative h-40 w-40 shrink-0">
-                  <div
-                    className={`absolute inset-0 overflow-hidden border-4 bg-[#191B1F] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
-                      role === "admin"
-                        ? "border-yellow-400 shadow-[0_0_28px_rgba(250,204,21,0.45)]"
-                        : role === "pro_player"
-                          ? "border-[#53FC18] shadow-[0_0_28px_rgba(83,252,24,0.35)]"
-                          : "border-black"
-                    }`}
-                  >
-                    {profile.avatar_url ? (
-                      <img
-                        src={profile.avatar_url}
-                        alt={profile.username}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-5xl font-black text-zinc-600">
-                        {profile.username.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
+  <div
+    className={`absolute inset-[10px] overflow-hidden border-4 bg-[#191B1F] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
+      role === "admin"
+        ? "border-yellow-400 shadow-[0_0_28px_rgba(250,204,21,0.45)]"
+        : role === "pro_player"
+          ? "border-[#53FC18] shadow-[0_0_28px_rgba(83,252,24,0.35)]"
+          : "border-black"
+    }`}
+  >
+    {profile.avatar_url ? (
+      <img
+        src={profile.avatar_url}
+        alt={profile.username}
+        className="h-full w-full object-cover"
+      />
+    ) : (
+      <div className="flex h-full w-full items-center justify-center text-5xl font-black text-zinc-600">
+        {profile.username.charAt(0).toUpperCase()}
+      </div>
+    )}
+  </div>
 
-                  {avatarBorderUrl && (
-                    <img
-                      src={avatarBorderUrl}
-                      alt={avatarBorder?.name || "Avatar Border"}
-                      className="pointer-events-none absolute inset-[-22px] z-20 h-[184px] w-[184px] object-contain"
-                    />
-                  )}
+  {avatarBorderUrl && (
+    <img
+      src={avatarBorderUrl}
+      alt={avatarBorder?.name || "Avatar Border"}
+      className="pointer-events-none absolute inset-0 z-20 h-full w-full object-contain"
+    />
+  )}
 
-                  <div
-                    className={`absolute -bottom-2 -right-2 z-30 border-2 border-black px-2 py-0.5 text-[9px] font-black uppercase tracking-tight ${
-                      profile.online_status
-                        ? "bg-[#53FC18] text-black"
-                        : "bg-zinc-500 text-white"
-                    }`}
-                  >
-                    {profile.online_status ? "LIVE" : "OFF"}
-                  </div>
+  <div
+    className={`absolute bottom-2 right-2 z-30 border-2 border-black px-2 py-0.5 text-[9px] font-black uppercase tracking-tight ${
+      profile.online_status
+        ? "bg-[#53FC18] text-black"
+        : "bg-zinc-500 text-white"
+    }`}
+  >
+    {profile.online_status ? "LIVE" : "OFF"}
+  </div>
 
-                  {role !== "user" && (
-                    <div
-                      className={`absolute -top-3 left-1/2 z-30 -translate-x-1/2 border-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest ${getRoleStyle(role)}`}
-                    >
-                      {role === "admin" ? "ADMIN" : "PRO"}
-                    </div>
-                  )}
-                </div>
+  {role !== "user" && (
+    <div
+      className={`absolute -top-3 left-1/2 z-30 -translate-x-1/2 border-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest ${getRoleStyle(role)}`}
+    >
+      {role === "admin" ? "ADMIN" : "PRO"}
+    </div>
+  )}
+</div>
 
                 <div className="flex-1">
                   <div

@@ -29,7 +29,6 @@ export default function FloatingReportButton() {
   const [activeRoom, setActiveRoom] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Ref untuk manipulasi DOM Auto-Scroll tanpa memicu re-render berkali-kali
   const messageEndRef = useRef<HTMLDivElement>(null)
 
   const hiddenPages =
@@ -53,12 +52,10 @@ export default function FloatingReportButton() {
     setActiveRoom(null)
   }
 
-  // Auto-scroll ke pesan paling bawah secara mulus
   const scrollToBottom = () => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
-  // Pemicu scroll otomatis setiap kali panjang array messages berubah
   useEffect(() => {
     if (open && messages.length > 0) {
       scrollToBottom()
@@ -132,7 +129,6 @@ export default function FloatingReportButton() {
       setIsSubmitting(true)
       setNotice("")
 
-      // Menyimpan teks sementara untuk optimasi UI instan
       const textToSend = chatMessage
       setChatMessage("")
 
@@ -166,7 +162,6 @@ export default function FloatingReportButton() {
     function handleReportMessage(message: any) {
       if (!message?.report_id) return
 
-      // Menggunakan currentReportId berbasis state fungsional agar selalu mendapatkan data terbaru
       setMessages((prev) => {
         const currentReportId = report?.id || activeRoom
         if (message.report_id !== currentReportId) return prev
@@ -204,18 +199,18 @@ export default function FloatingReportButton() {
 
   return (
     <>
-      {/* FLOATING ACTION BUTTON - Diatur posisinya agar aman dari sidebar mobile */}
+      {/* FLOATING ACTION BUTTON - Posisi dinaikkan dari bawah agar tidak mentok sidebar/navigasi */}
       <button
         onClick={() => setOpen(!open)}
         aria-label="Open report livechat"
-        className="fixed bottom-6 right-6 lg:bottom-8 lg:right-8 z-[60] flex h-14 w-14 lg:h-16 lg:w-16 items-center justify-center rounded-full border-4 border-black bg-[#53FC18] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+        className="fixed bottom-24 right-6 lg:bottom-28 lg:right-8 z-[60] flex h-14 w-14 lg:h-16 lg:w-16 items-center justify-center rounded-full border-4 border-black bg-[#53FC18] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
       >
         {open ? <X size={24} className="lg:hidden" /> : <ShieldAlert size={26} />}
       </button>
 
-      {/* CHAT PANEL WINDOW CONTAINER */}
+      {/* CHAT PANEL WINDOW CONTAINER - Posisi disesuaikan berada tepat di atas tombol baru */}
       {open && (
-        <div className="fixed bottom-24 right-4 left-4 sm:left-auto sm:right-6 lg:bottom-28 lg:right-8 z-50 flex h-[calc(100vh-140px)] max-h-[540px] w-auto sm:w-[360px] flex-col border-2 border-black bg-[#0E1318] font-mono text-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] md:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <div className="fixed bottom-40 right-4 left-4 sm:left-auto sm:right-6 lg:bottom-48 lg:right-8 z-50 flex h-[calc(100vh-220px)] max-h-[480px] w-auto sm:w-[360px] flex-col border-2 border-black bg-[#0E1318] font-mono text-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] md:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
           
           {/* HEADER CHAT */}
           <div className="flex items-center justify-between border-b-2 border-black bg-[#191B1F] p-4">
@@ -263,7 +258,7 @@ export default function FloatingReportButton() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="CERITAKAN KENDALA..."
                 disabled={isSubmitting}
-                className="mt-3 flex-1 min-h-[120px] resize-none border-2 border-black bg-[#191B1F] p-3 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18] disabled:opacity-50"
+                className="mt-3 flex-1 min-h-[100px] resize-none border-2 border-black bg-[#191B1F] p-3 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18] disabled:opacity-50"
               />
 
               <button 
@@ -316,7 +311,6 @@ export default function FloatingReportButton() {
                     )
                   })
                 )}
-                {/* DOM Anchor untuk Auto-scroll */}
                 <div ref={messageEndRef} />
               </div>
 
