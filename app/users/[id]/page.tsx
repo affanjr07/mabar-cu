@@ -7,6 +7,16 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute"
 import { getPublicProfile } from "@/services/profile.service"
 import { api } from "@/lib/axios"
 
+interface ShopItem {
+  id?: string
+  name?: string
+  type?: string
+  image_url?: string | null
+  rarity?: string
+  css_class?: string | null
+  metadata?: any
+}
+
 interface PublicProfile {
   id: string
   username: string
@@ -15,6 +25,7 @@ interface PublicProfile {
   banner_url?: string | null
   bio?: string | null
   gender?: string | null
+  role?: "user" | "admin" | "pro_player" | string
   favorite_game?: string | null
   game_rank?: string | null
   preferred_role?: string | null
@@ -26,7 +37,56 @@ interface PublicProfile {
   average_rating?: number
   total_ratings?: number
   badges?: string[]
+  equipped_avatar_border?: ShopItem | null
+  equipped_badges?: ShopItem[]
   is_following?: boolean
+  is_own_profile?: boolean
+}
+
+function parseMetadata(metadata: any) {
+  if (!metadata) return {}
+
+  if (typeof metadata === "object") return metadata
+
+  try {
+    return JSON.parse(metadata)
+  } catch {
+    return {}
+  }
+}
+
+function getBadgeColor(color?: string) {
+  switch (color) {
+    case "red":
+      return "bg-red-500 text-white shadow-[0_0_18px_rgba(239,68,68,0.8)]"
+    case "blue":
+      return "bg-blue-500 text-white shadow-[0_0_18px_rgba(59,130,246,0.8)]"
+    case "green":
+      return "bg-green-500 text-black shadow-[0_0_18px_rgba(34,197,94,0.8)]"
+    case "purple":
+      return "bg-purple-500 text-white shadow-[0_0_18px_rgba(168,85,247,0.8)]"
+    case "orange":
+      return "bg-orange-500 text-black shadow-[0_0_18px_rgba(249,115,22,0.8)]"
+    case "gold":
+    case "yellow":
+      return "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.8)]"
+    case "cyan":
+      return "bg-cyan-400 text-black shadow-[0_0_18px_rgba(34,211,238,0.8)]"
+    default:
+      return "bg-[#53FC18] text-black shadow-[0_0_14px_rgba(83,252,24,0.5)]"
+  }
+}
+
+function getRoleStyle(role?: string) {
+  if (role === "admin") {
+    return "border-yellow-400 bg-yellow-400 text-black shadow-[0_0_22px_rgba(250,204,21,0.45)]"
+  }
+
+  if (role === "pro_player") {
+    return "border-[#53FC18] bg-[#53FC18] text-black shadow-[0_0_22px_rgba(83,252,24,0.35)]"
+  }
+
+  return "border-zinc-700 bg-[#191B1F] text-zinc-400"
 }
 
 export default function UserProfilePage() {
@@ -121,6 +181,7 @@ export default function UserProfilePage() {
       <ProtectedRoute>
         <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
           <Sidebar />
+
           <section className="flex flex-1 items-center justify-center">
             <div className="border-2 border-black bg-[#0E1318] p-8 text-xs font-black uppercase tracking-widest text-[#53FC18] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               ⏳ LOADING PLAYER PROFILE...
@@ -136,6 +197,7 @@ export default function UserProfilePage() {
       <ProtectedRoute>
         <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
           <Sidebar />
+
           <section className="flex flex-1 items-center justify-center p-6">
             <div className="w-full max-w-md border-4 border-black bg-[#0E1318] p-8 text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
               <h1 className="text-2xl font-black uppercase tracking-tight text-red-500">
@@ -158,6 +220,12 @@ export default function UserProfilePage() {
       </ProtectedRoute>
     )
   }
+
+  const avatarBorder = profile.equipped_avatar_border
+  const avatarBorderUrl = avatarBorder?.image_url || null
+  const equippedBadges = profile.equipped_badges || []
+  const role = profile.role || "user"
+  const displayName = profile.display_name || profile.username
 
   return (
     <ProtectedRoute>
@@ -184,21 +252,39 @@ export default function UserProfilePage() {
           <div className="relative px-6 pb-16 lg:px-10">
             <div className="-mt-20 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-                <div className="relative h-40 w-40 shrink-0 border-4 border-black bg-[#191B1F] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  {profile.avatar_url ? (
+                <div className="relative h-40 w-40 shrink-0">
+                  <div
+                    className={`absolute inset-0 overflow-hidden border-4 bg-[#191B1F] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
+                      role === "admin"
+                        ? "border-yellow-400 shadow-[0_0_28px_rgba(250,204,21,0.45)]"
+                        : role === "pro_player"
+                          ? "border-[#53FC18] shadow-[0_0_28px_rgba(83,252,24,0.35)]"
+                          : "border-black"
+                    }`}
+                  >
+                    {profile.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt={profile.username}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-5xl font-black text-zinc-600">
+                        {profile.username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  {avatarBorderUrl && (
                     <img
-                      src={profile.avatar_url}
-                      alt={profile.username}
-                      className="h-full w-full object-cover"
+                      src={avatarBorderUrl}
+                      alt={avatarBorder?.name || "Avatar Border"}
+                      className="pointer-events-none absolute inset-[-22px] z-20 h-[184px] w-[184px] object-contain"
                     />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-5xl font-black text-zinc-600">
-                      {profile.username.charAt(0).toUpperCase()}
-                    </div>
                   )}
 
                   <div
-                    className={`absolute -bottom-2 -right-2 border-2 border-black px-2 py-0.5 text-[9px] font-black uppercase tracking-tight ${
+                    className={`absolute -bottom-2 -right-2 z-30 border-2 border-black px-2 py-0.5 text-[9px] font-black uppercase tracking-tight ${
                       profile.online_status
                         ? "bg-[#53FC18] text-black"
                         : "bg-zinc-500 text-white"
@@ -206,6 +292,14 @@ export default function UserProfilePage() {
                   >
                     {profile.online_status ? "LIVE" : "OFF"}
                   </div>
+
+                  {role !== "user" && (
+                    <div
+                      className={`absolute -top-3 left-1/2 z-30 -translate-x-1/2 border-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest ${getRoleStyle(role)}`}
+                    >
+                      {role === "admin" ? "ADMIN" : "PRO"}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1">
@@ -222,9 +316,17 @@ export default function UserProfilePage() {
                       : profile.last_online_text?.toUpperCase() || "OFFLINE"}
                   </div>
 
-                  <h1 className="text-4xl font-black uppercase tracking-tight md:text-5xl">
-                    {profile.display_name || profile.username}
-                  </h1>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-4xl font-black uppercase tracking-tight md:text-5xl">
+                      {displayName}
+                    </h1>
+
+                    <span
+                      className={`border-2 px-3 py-1 text-[10px] font-black uppercase tracking-widest ${getRoleStyle(role)}`}
+                    >
+                      {role}
+                    </span>
+                  </div>
 
                   <p className="mt-1 text-xs font-bold uppercase text-[#53FC18]">
                     @{profile.username}
@@ -240,41 +342,51 @@ export default function UserProfilePage() {
                     <Tag>{profile.favorite_game || "NO FAVORITE GAME"}</Tag>
                     <Tag>{profile.region || "GLOBAL REGION"}</Tag>
                   </div>
+
+                  {equippedBadges.length > 0 && (
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {equippedBadges.map((badge) => (
+                        <ProfileBadge key={badge.id || badge.name} badge={badge} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3">
-                <button
-                  disabled={actionLoading}
-                  onClick={handleFollow}
-                  className={`flex h-12 items-center justify-center border-2 border-black px-6 text-xs font-black uppercase tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-40 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] ${
-                    isFollowing
-                      ? "bg-white text-black hover:bg-zinc-200"
-                      : "bg-[#53FC18] text-black hover:bg-[#6eff3b]"
-                  }`}
-                >
-                  {actionLoading
-                    ? "LOADING..."
-                    : isFollowing
-                      ? "UNFOLLOW"
-                      : "FOLLOW PLAYER"}
-                </button>
+              {!profile.is_own_profile && (
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    disabled={actionLoading}
+                    onClick={handleFollow}
+                    className={`flex h-12 items-center justify-center border-2 border-black px-6 text-xs font-black uppercase tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-40 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] ${
+                      isFollowing
+                        ? "bg-white text-black hover:bg-zinc-200"
+                        : "bg-[#53FC18] text-black hover:bg-[#6eff3b]"
+                    }`}
+                  >
+                    {actionLoading
+                      ? "LOADING..."
+                      : isFollowing
+                        ? "UNFOLLOW"
+                        : "FOLLOW PLAYER"}
+                  </button>
 
-                <button
-                  onClick={handleInviteParty}
-                  className="flex h-12 items-center justify-center border-2 border-black bg-[#191B1F] px-6 text-xs font-black uppercase tracking-widest text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-black active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
-                >
-                  INVITE PARTY
-                </button>
+                  <button
+                    onClick={handleInviteParty}
+                    className="flex h-12 items-center justify-center border-2 border-black bg-[#191B1F] px-6 text-xs font-black uppercase tracking-widest text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-black active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    INVITE PARTY
+                  </button>
 
-                <button
-                  disabled={actionLoading}
-                  onClick={handleBlock}
-                  className="flex h-12 items-center justify-center border-2 border-black bg-red-950/40 px-6 text-xs font-black uppercase tracking-widest text-red-500 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-red-900/40 disabled:opacity-40 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
-                >
-                  BLOCK
-                </button>
-              </div>
+                  <button
+                    disabled={actionLoading}
+                    onClick={handleBlock}
+                    className="flex h-12 items-center justify-center border-2 border-black bg-red-950/40 px-6 text-xs font-black uppercase tracking-widest text-red-500 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-red-900/40 disabled:opacity-40 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    BLOCK
+                  </button>
+                </div>
+              )}
             </div>
 
             {message && (
@@ -288,7 +400,7 @@ export default function UserProfilePage() {
               <Stat label="FOLLOWING" value={profile.following_count || 0} />
               <Stat
                 label="AVG RATING"
-                value={`★ ${profile.average_rating || 0}`}
+                value={`★ ${Number(profile.average_rating || 0).toFixed(1)}`}
                 isHighlight
               />
               <Stat label="TOTAL REVIEWS" value={profile.total_ratings || 0} />
@@ -297,24 +409,57 @@ export default function UserProfilePage() {
             <div className="mt-8 grid gap-6 xl:grid-cols-3">
               <div className="border-2 border-black bg-[#0E1318] p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <h2 className="text-sm font-black uppercase tracking-widest text-zinc-400">
-                  // EARNED BADGES
+                  // EQUIPPED COSMETICS
                 </h2>
 
-                <div className="mt-6 flex flex-wrap gap-2">
-                  {profile.badges && profile.badges.length > 0 ? (
-                    profile.badges.map((badge) => (
-                      <span
-                        key={badge}
-                        className="border border-black bg-[#53FC18]/10 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#53FC18]"
-                      >
-                        {badge.toUpperCase()}
-                      </span>
-                    ))
-                  ) : (
-                    <p className="text-xs font-bold uppercase text-zinc-600">
-                      BELUM MEMILIKI BADGE PENGHARGAAN.
+                <div className="mt-6 space-y-5">
+                  <div>
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                      Avatar Border
                     </p>
-                  )}
+
+                    {avatarBorder ? (
+                      <div className="flex items-center gap-3 border-2 border-black bg-[#191B1F] p-3">
+                        {avatarBorder.image_url && (
+                          <img
+                            src={avatarBorder.image_url}
+                            alt={avatarBorder.name || "Border"}
+                            className="h-12 w-12 object-contain"
+                          />
+                        )}
+                        <div>
+                          <p className="text-xs font-black uppercase text-white">
+                            {avatarBorder.name || "Avatar Border"}
+                          </p>
+                          <p className="text-[9px] font-black uppercase text-[#53FC18]">
+                            {avatarBorder.rarity || "cosmetic"}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold uppercase text-zinc-600">
+                        BELUM ADA AVATAR BORDER DIPAKAI.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                      Badges
+                    </p>
+
+                    {equippedBadges.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {equippedBadges.map((badge) => (
+                          <ProfileBadge key={badge.id || badge.name} badge={badge} />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold uppercase text-zinc-600">
+                        BELUM ADA BADGE DIPAKAI.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -324,6 +469,7 @@ export default function UserProfilePage() {
                 </h2>
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <Info label="ACCOUNT ROLE" value={role} />
                   <Info label="FAVORITE GAME" value={profile.favorite_game} />
                   <Info label="COMPETITIVE RANK" value={profile.game_rank} />
                   <Info label="PREFERRED ROLE" value={profile.preferred_role} />
@@ -358,6 +504,33 @@ export default function UserProfilePage() {
         </section>
       </main>
     </ProtectedRoute>
+  )
+}
+
+function ProfileBadge({ badge }: { badge: ShopItem }) {
+  const metadata = parseMetadata(badge.metadata)
+  const label = metadata.label || badge.name || "BADGE"
+  const color = metadata.color
+  const animated = metadata.animation === "pulse" || metadata.glow
+
+  return (
+    <div className="flex items-center gap-2 border-2 border-black bg-[#191B1F] px-3 py-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+      {badge.image_url && (
+        <img
+          src={badge.image_url}
+          alt={badge.name || label}
+          className={`h-7 w-7 object-contain ${animated ? "animate-pulse" : ""}`}
+        />
+      )}
+
+      <span
+        className={`border-2 border-black px-2 py-1 text-[9px] font-black uppercase tracking-widest ${getBadgeColor(color)} ${
+          animated ? "animate-pulse" : ""
+        }`}
+      >
+        {label}
+      </span>
+    </div>
   )
 }
 

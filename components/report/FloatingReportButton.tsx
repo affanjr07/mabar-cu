@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { ShieldAlert, X } from "lucide-react"
 import { socket } from "@/lib/socket"
@@ -27,6 +27,10 @@ export default function FloatingReportButton() {
   const [chatMessage, setChatMessage] = useState("")
   const [notice, setNotice] = useState("")
   const [activeRoom, setActiveRoom] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Ref untuk manipulasi DOM Auto-Scroll tanpa memicu re-render berkali-kali
+  const messageEndRef = useRef<HTMLDivElement>(null)
 
   const hiddenPages =
     pathname.startsWith("/login") ||
@@ -48,6 +52,18 @@ export default function FloatingReportButton() {
     setNotice("")
     setActiveRoom(null)
   }
+
+  // Auto-scroll ke pesan paling bawah secara mulus
+  const scrollToBottom = () => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  // Pemicu scroll otomatis setiap kali panjang array messages berubah
+  useEffect(() => {
+    if (open && messages.length > 0) {
+      scrollToBottom()
+    }
+  }, [messages, open])
 
   async function loadActiveReport() {
     if (!user?.id || !isAuthenticated) return
@@ -81,13 +97,13 @@ export default function FloatingReportButton() {
 
   async function handleCreateReport(e: React.FormEvent) {
     e.preventDefault()
-
-    if (!title.trim()) {
+    if (!title.trim() || isSubmitting) {
       setNotice("Judul laporan wajib diisi.")
       return
     }
 
     try {
+      setIsSubmitting(true)
       setNotice("")
 
       const result = await createReport({
@@ -103,21 +119,28 @@ export default function FloatingReportButton() {
       await loadActiveReport()
     } catch (error: any) {
       setNotice(error.response?.data?.message || "Gagal membuat report.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault()
-
-    if (!report?.id || !chatMessage.trim()) return
+    if (!report?.id || !chatMessage.trim() || isSubmitting) return
 
     try {
+      setIsSubmitting(true)
       setNotice("")
 
-      await sendReportMessage(report.id, chatMessage)
+      // Menyimpan teks sementara untuk optimasi UI instan
+      const textToSend = chatMessage
       setChatMessage("")
+
+      await sendReportMessage(report.id, textToSend)
     } catch (error: any) {
       setNotice(error.response?.data?.message || "Gagal kirim pesan.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -143,6 +166,7 @@ export default function FloatingReportButton() {
     function handleReportMessage(message: any) {
       if (!message?.report_id) return
 
+      // Menggunakan currentReportId berbasis state fungsional agar selalu mendapatkan data terbaru
       setMessages((prev) => {
         const currentReportId = report?.id || activeRoom
         if (message.report_id !== currentReportId) return prev
@@ -155,14 +179,16 @@ export default function FloatingReportButton() {
     }
 
     function handleReportClosed(closedReport: any) {
-      const currentReportId = report?.id || activeRoom
-
-      if (closedReport?.id === currentReportId) {
-        setReport(null)
-        setMessages([])
-        setActiveRoom(null)
-        setNotice("Report sudah ditutup oleh admin. Kamu bisa membuat report baru.")
-      }
+      setReport((currentReport: any) => {
+        const currentId = currentReport?.id || activeRoom
+        if (closedReport?.id === currentId) {
+          setMessages([])
+          setActiveRoom(null)
+          setNotice("Report sudah ditutup oleh admin. Kamu bisa membuat report baru.")
+          return null
+        }
+        return currentReport
+      })
     }
 
     socket.on("report_message_received", handleReportMessage)
@@ -172,30 +198,32 @@ export default function FloatingReportButton() {
       socket.off("report_message_received", handleReportMessage)
       socket.off("report_closed", handleReportClosed)
     }
-  }, [isAuthenticated, user?.id, report?.id, activeRoom])
+  }, [isAuthenticated, user?.id, activeRoom])
 
-  if (!hasHydrated) return null
-  if (!isAuthenticated || !user?.id) return null
-  if (hiddenPages) return null
+  if (!hasHydrated || !isAuthenticated || !user?.id || hiddenPages) return null
 
   return (
     <>
+      {/* FLOATING ACTION BUTTON - Diatur posisinya agar aman dari sidebar mobile */}
       <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border-4 border-black bg-[#53FC18] text-black shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] transition hover:bg-[#6eff3b] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+        onClick={() => setOpen(!open)}
+        aria-label="Open report livechat"
+        className="fixed bottom-6 right-6 lg:bottom-8 lg:right-8 z-[60] flex h-14 w-14 lg:h-16 lg:w-16 items-center justify-center rounded-full border-4 border-black bg-[#53FC18] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
       >
-        <ShieldAlert size={28} />
+        {open ? <X size={24} className="lg:hidden" /> : <ShieldAlert size={26} />}
       </button>
 
+      {/* CHAT PANEL WINDOW CONTAINER */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 flex h-[520px] w-[360px] flex-col border-2 border-black bg-[#0E1318] font-mono text-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <div className="fixed bottom-24 right-4 left-4 sm:left-auto sm:right-6 lg:bottom-28 lg:right-8 z-50 flex h-[calc(100vh-140px)] max-h-[540px] w-auto sm:w-[360px] flex-col border-2 border-black bg-[#0E1318] font-mono text-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] md:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+          
+          {/* HEADER CHAT */}
           <div className="flex items-center justify-between border-b-2 border-black bg-[#191B1F] p-4">
             <div>
-              <h2 className="text-lg font-black uppercase text-[#53FC18]">
+              <h2 className="text-sm lg:text-base font-black uppercase text-[#53FC18]">
                 Report Livechat
               </h2>
-
-              <p className="text-[10px] font-black uppercase text-zinc-500">
+              <p className="text-[9px] lg:text-[10px] font-black uppercase text-zinc-500">
                 Satu report aktif per user.
               </p>
             </div>
@@ -203,56 +231,64 @@ export default function FloatingReportButton() {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-zinc-400 hover:text-white"
+              className="text-zinc-400 hover:text-white transition-colors"
             >
               <X size={20} />
             </button>
           </div>
 
+          {/* NOTICE ALERT ELEMENT */}
           {notice && (
-            <div className="border-b-2 border-black bg-[#142A14] p-3 text-[10px] font-black uppercase text-[#53FC18]">
+            <div className="border-b-2 border-black bg-[#142A14] p-3 text-[10px] font-black uppercase text-[#53FC18] break-words">
               {notice}
             </div>
           )}
 
+          {/* BLOCK 1: FORM PEMBUATAN REPORT BARU */}
           {!report ? (
             <form
               onSubmit={handleCreateReport}
-              className="flex flex-1 flex-col p-4"
+              className="flex flex-1 flex-col p-4 overflow-y-auto"
             >
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="JUDUL KELUHAN"
-                className="h-12 border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18]"
+                disabled={isSubmitting}
+                className="h-11 border-2 border-black bg-[#191B1F] px-3 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18] disabled:opacity-50"
               />
 
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="CERITAKAN KENDALA..."
-                className="mt-3 flex-1 resize-none border-2 border-black bg-[#191B1F] p-4 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18]"
+                disabled={isSubmitting}
+                className="mt-3 flex-1 min-h-[120px] resize-none border-2 border-black bg-[#191B1F] p-3 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18] disabled:opacity-50"
               />
 
-              <button className="mt-4 border-2 border-black bg-[#53FC18] py-3 text-xs font-black uppercase text-black">
-                Create Report
+              <button 
+                disabled={isSubmitting || !title.trim()}
+                className="mt-4 border-2 border-black bg-[#53FC18] py-3 text-xs font-black uppercase text-black transition-colors hover:bg-[#6eff3b] disabled:opacity-40"
+              >
+                {isSubmitting ? "CREATING..." : "Create Report"}
               </button>
             </form>
           ) : (
+            // BLOCK 2: INTERFACES ROOM CHAT AKTIF
             <>
               <div className="border-b-2 border-black bg-[#0B0E11] p-3">
-                <p className="text-xs font-black uppercase text-white">
+                <p className="text-xs font-black uppercase text-white truncate">
                   {report.title}
                 </p>
-
                 <p className="text-[10px] font-black uppercase text-[#53FC18]">
                   Status: {report.status}
                 </p>
               </div>
 
-              <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {/* MESSAGES HUB */}
+              <div className="flex-1 space-y-3 overflow-y-auto p-4 custom-scrollbar">
                 {messages.length === 0 ? (
-                  <div className="border-2 border-dashed border-black bg-[#191B1F] p-4 text-[10px] font-black uppercase text-zinc-500">
+                  <div className="border-2 border-dashed border-black bg-[#191B1F] p-4 text-[10px] font-black uppercase text-zinc-500 text-center">
                     Belum ada balasan. Tunggu admin masuk ke livechat.
                   </div>
                 ) : (
@@ -262,42 +298,46 @@ export default function FloatingReportButton() {
                     return (
                       <div
                         key={item.id}
-                        className={`flex ${
-                          mine ? "justify-end" : "justify-start"
-                        }`}
+                        className={`flex ${mine ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[80%] border-2 border-black p-3 text-xs font-bold uppercase ${
+                          className={`max-w-[85%] border-2 border-black p-2.5 text-xs font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
                             mine
                               ? "bg-[#53FC18] text-black"
                               : "bg-[#191B1F] text-white"
                           }`}
                         >
-                          <p className="mb-1 text-[9px] font-black opacity-70">
+                          <p className="mb-0.5 text-[8px] font-black opacity-60">
                             {mine ? "YOU" : item.sender_role || "ADMIN"}
                           </p>
-
-                          <p className="break-words">{item.message}</p>
+                          <p className="break-words leading-snug">{item.message}</p>
                         </div>
                       </div>
                     )
                   })
                 )}
+                {/* DOM Anchor untuk Auto-scroll */}
+                <div ref={messageEndRef} />
               </div>
 
+              {/* INPUT BAR CHAT */}
               <form
                 onSubmit={handleSendMessage}
-                className="border-t-2 border-black p-3"
+                className="border-t-2 border-black p-3 bg-[#191B1F]"
               >
                 <div className="flex gap-2">
                   <input
                     value={chatMessage}
                     onChange={(e) => setChatMessage(e.target.value)}
                     placeholder="KETIK PESAN..."
-                    className="h-11 flex-1 border-2 border-black bg-[#191B1F] px-3 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18]"
+                    disabled={isSubmitting}
+                    className="h-10 flex-1 border-2 border-black bg-[#0E1318] px-3 text-xs font-black uppercase text-white outline-none focus:border-[#53FC18] disabled:opacity-50"
                   />
 
-                  <button className="border-2 border-black bg-[#53FC18] px-4 text-xs font-black uppercase text-black">
+                  <button 
+                    disabled={isSubmitting || !chatMessage.trim()}
+                    className="border-2 border-black bg-[#53FC18] px-4 text-xs font-black uppercase text-black hover:bg-[#6eff3b] disabled:opacity-40"
+                  >
                     Send
                   </button>
                 </div>
