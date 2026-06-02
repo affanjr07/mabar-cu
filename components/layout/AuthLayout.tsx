@@ -73,3 +73,6 @@ function AuthLayout({
     </main>
   )
 }
+
+// OPTIMASI: Dibungkus memo agar layout statis ini tidak ikut dirender ulang secara sia-sia saat state form anak (login) berubah.
+export default memo(AuthLayout)
