@@ -244,21 +244,21 @@ export default function RoomChatPage() {
                           </p>
                         </div>
 
-                        {mine && (
-                          <div className="h-11 w-11 shrink-0 overflow-hidden border-2 border-black bg-[#53FC18] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                            {user?.avatar_url ? (
-                              <img
-                                src={user.avatar_url}
-                                alt={user.username || "You"}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-sm font-black uppercase text-black">
-                                {(user?.username || "Y").charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                          </div>
-                        )}
+{mine && (
+  <div className="h-11 w-11 shrink-0 overflow-hidden border-2 border-black bg-[#53FC18] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+    {avatarUrl ? (
+      <img
+        src={avatarUrl}
+        alt={senderName || "You"}
+        className="h-full w-full object-cover"
+      />
+    ) : (
+      <div className="flex h-full w-full items-center justify-center text-sm font-black uppercase text-black">
+        {(senderName || "Y").charAt(0).toUpperCase()}
+      </div>
+    )}
+  </div>
+)}
                       </div>
                     )
                   })

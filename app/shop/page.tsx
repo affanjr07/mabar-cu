@@ -340,7 +340,7 @@ function ItemPreview({
           avatarUrl={avatarUrl}
           username={username}
           border={item}
-          size={92}
+          size="shop"
         />
       </div>
     )

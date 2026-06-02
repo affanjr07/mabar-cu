@@ -78,7 +78,6 @@ export default function DashboardPage() {
       }
 
       const nextOffset = reset ? 0 : playersOffset
-
       let data: Player[] = []
 
       try {
@@ -109,10 +108,8 @@ export default function DashboardPage() {
   async function loadDashboard() {
     try {
       setLoading(true)
-
       const tournamentsData = await getTournaments()
       setTournaments(tournamentsData || [])
-
       await loadPlayers(true)
     } catch (error) {
       console.log("Dashboard error:", error)
@@ -123,10 +120,8 @@ export default function DashboardPage() {
 
   async function handleSearch(value: string) {
     setSearch(value)
-
     try {
       setLoading(true)
-
       const data = await searchPlayers(value, playerLimit, 0)
       const sortedData = sortPlayersByStatus(data || [])
 
@@ -143,7 +138,6 @@ export default function DashboardPage() {
   async function handleLoadMore() {
     try {
       setLoadingMore(true)
-
       const data = await searchPlayers(search, playerLimit, playersOffset)
       const sortedData = sortPlayersByStatus(data || [])
 
@@ -176,13 +170,12 @@ export default function DashboardPage() {
         <Sidebar />
 
         <section className="custom-scrollbar flex flex-1 flex-col justify-between overflow-y-auto">
-          <div className="p-6 lg:p-8">
+          <div className="p-4 sm:p-6 lg:p-8">
             <div className="flex flex-col justify-between gap-6 border-b-2 border-[#191B1F] pb-6 lg:flex-row lg:items-center">
               <div>
                 <h1 className="text-3xl font-black uppercase tracking-tight md:text-4xl">
                   Welcome Back, <span className="text-[#53FC18]">Gamer</span>
                 </h1>
-
                 <p className="mt-1 text-xs font-bold uppercase tracking-wider text-zinc-500">
                   Temukan squad terbaik & bantai musuhmu hari ini.
                 </p>
@@ -191,7 +184,6 @@ export default function DashboardPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex w-full items-center border-2 border-[#191B1F] bg-[#0E1318] px-4 transition-colors focus-within:border-[#53FC18] sm:w-80">
                   <Search size={18} className="mr-2 shrink-0 text-zinc-500" />
-
                   <input
                     value={search}
                     onChange={(e) => handleSearch(e.target.value)}
@@ -219,40 +211,28 @@ export default function DashboardPage() {
                 <span>
                   🔥 UPDATE TOURNAMENT TERBARU SEDANG BERLANGSUNG • SEGERA DAFTARKAN TIM MU SEBELUM SLOT HABIS • MABAR.CU CHAMPIONSHIP 2026 IS LIVE NOW
                 </span>
-                <span>
-                  🔥 UPDATE TOURNAMENT TERBARU SEDANG BERLANGSUNG • SEGERA DAFTARKAN TIM MU SEBELUM SLOT HABIS • MABAR.CU CHAMPIONSHIP 2026 IS LIVE NOW
-                </span>
-                <span>
-                  🔥 UPDATE TOURNAMENT TERBARU SEDANG BERLANGSUNG • SEGERA DAFTARKAN TIM MU SEBELUM SLOT HABIS • MABAR.CU CHAMPIONSHIP 2026 IS LIVE NOW
-                </span>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-3">
+            <div className="mt-6 grid gap-4 lg:grid-cols-3 lg:gap-6">
               <div className="group relative overflow-hidden border-2 border-black bg-[#0E1318] p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:p-8 lg:col-span-2">
                 <div className="pointer-events-none absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[#53FC18]/10 to-transparent" />
-
                 <div className="relative z-10 flex h-full flex-col justify-between">
                   <div>
                     <div className="mb-4 inline-flex border border-black bg-[#53FC18] px-3 py-1 text-xs font-black text-black">
                       EVENT TERBARU
                     </div>
-
                     <h2 className="text-3xl font-black uppercase leading-none tracking-tighter sm:text-5xl">
-                      {featuredTournament
-                        ? featuredTournament.title
-                        : "JOIN TOURNAMENT"}
+                      {featuredTournament ? featuredTournament.title : "JOIN TOURNAMENT"}
                       <br />
                       <span className="text-[#53FC18]">SEASON 2026</span>
                     </h2>
-
                     <p className="mt-4 max-w-md text-xs font-bold uppercase tracking-tight text-zinc-400">
                       {featuredTournament
                         ? `Total Hadiah: ${featuredTournament.prize} • Ikuti kompetisi sengit antarsquad!`
                         : "Menangkan prize pool bersama squad terbaikmu. Tunjukkan taringmu di arena kompetitif."}
                     </p>
                   </div>
-
                   <button
                     onClick={() => router.push("/tournament")}
                     className="mt-8 self-start border-2 border-black bg-[#53FC18] px-6 py-3 text-sm font-black uppercase text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
@@ -268,16 +248,13 @@ export default function DashboardPage() {
                     <Swords size={16} />
                     PROMOTION BLOCK
                   </div>
-
                   <h3 className="text-xl font-black uppercase tracking-tight text-white">
                     UPGRADE KE <span className="text-[#53FC18]">PRO MEMBER</span>
                   </h3>
-
                   <p className="mt-2 text-xs font-bold uppercase leading-relaxed tracking-tight text-zinc-400">
                     Dapatkan badge eksklusif, akses prioritas matchmaking, dan fitur booking VIP.
                   </p>
                 </div>
-
                 <button
                   onClick={() => router.push("/pro")}
                   className="mt-6 block border-2 border-[#53FC18] bg-transparent py-2.5 text-center text-xs font-black uppercase tracking-wider text-[#53FC18] transition-colors hover:bg-[#53FC18] hover:text-black"
@@ -287,47 +264,43 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {/* Stat Card Grid: Dibuat 2 kolom di Mobile agar tidak terlalu memanjang */}
+            <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
               <StatCard
                 value={players.length}
-                label="Loaded Players"
-                icon={<Flame size={20} className="text-zinc-600" />}
+                label="Loaded"
+                icon={<Flame size={18} className="text-zinc-600 hidden xs:block" />}
               />
-
               <StatCard
                 value={onlinePlayersCount}
-                label="Online Players"
-                icon={<Flame size={20} className="text-zinc-600" />}
+                label="Online"
+                icon={<Flame size={18} className="text-zinc-600 hidden xs:block" />}
               />
-
               <StatCard
                 value={tournaments.length}
-                label="Upcoming Events"
-                icon={<Trophy size={20} className="text-zinc-600" />}
+                label="Events"
+                icon={<Trophy size={18} className="text-zinc-600 hidden xs:block" />}
               />
-
               <StatCard
                 value="5v5"
-                label="Party Mode"
-                icon={<Swords size={20} className="text-zinc-600" />}
+                label="Party"
+                icon={<Swords size={18} className="text-zinc-600 hidden xs:block" />}
               />
             </div>
 
-            <div className="mt-14">
+            <div className="mt-12">
               <div className="mb-6 flex flex-col gap-4 border-b border-[#191B1F] pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-2xl font-black uppercase tracking-tight">
                     Lobby Players
                   </h2>
-
                   <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
                     Semua player ditampilkan, online di atas dan offline tetap terlihat.
                   </p>
                 </div>
-
                 <button
                   onClick={() => router.push("/matchmaking")}
-                  className="self-start border-2 border-[#53FC18] bg-[#53FC18]/5 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#53FC18] transition-colors hover:bg-[#53FC18] hover:text-black"
+                  className="w-full sm:w-auto border-2 border-[#53FC18] bg-[#53FC18]/5 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#53FC18] transition-colors hover:bg-[#53FC18] hover:text-black"
                 >
                   Auto Matchmaking
                 </button>
@@ -344,11 +317,12 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {/* FIX UTAMA: Grid Player dibuat grid-cols-2 secara default (mobile) */}
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {players.map((player) => (
                       <div
                         key={player.id}
-                        className={`transition-transform duration-150 hover:translate-y-[-2px] ${
+                        className={`transition-transform duration-150 will-change-transform hover:translate-y-[-2px] ${
                           player.online_status ? "" : "opacity-70 grayscale"
                         }`}
                       >
@@ -362,7 +336,6 @@ export default function DashboardPage() {
                           avatarBorder={player.equipped_avatar_border}
                           game={player.favorite_game}
                           region={player.region}
-                          rating={player.average_rating}
                           pro={player.role === "pro_player"}
                           lastOnlineText={
                             player.online_status
@@ -379,7 +352,7 @@ export default function DashboardPage() {
                     <button
                       onClick={handleLoadMore}
                       disabled={loadingMore}
-                      className="mt-8 w-full border-2 border-black bg-[#191B1F] py-4 text-xs font-black uppercase tracking-widest text-[#53FC18] hover:bg-black disabled:opacity-50"
+                      className="mt-6 w-full border-2 border-black bg-[#191B1F] py-3.5 text-xs font-black uppercase tracking-widest text-[#53FC18] hover:bg-black disabled:opacity-50"
                     >
                       {loadingMore ? "Loading More..." : "Load More Players"}
                     </button>
@@ -395,27 +368,17 @@ export default function DashboardPage() {
                 <span className="border border-zinc-700 bg-black px-2 py-0.5 font-black text-white">
                   M
                 </span>
-
                 <p className="font-bold uppercase tracking-tight">
                   © 2026 MABAR.CU • ALL RIGHTS RESERVED.
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-x-6 gap-y-2 font-bold uppercase tracking-wider">
-                <a
-                  href="#"
-                  className="flex items-center gap-1 transition-colors hover:text-[#53FC18]"
-                >
+                <a href="#" className="flex items-center gap-1 transition-colors hover:text-[#53FC18]">
                   <HelpCircle size={14} /> Support
                 </a>
-
-                <a href="#" className="transition-colors hover:text-[#53FC18]">
-                  Terms of Service
-                </a>
-
-                <a href="#" className="transition-colors hover:text-[#53FC18]">
-                  Privacy Policy
-                </a>
+                <a href="#" className="transition-colors hover:text-[#53FC18]">Terms of Service</a>
+                <a href="#" className="transition-colors hover:text-[#53FC18]">Privacy Policy</a>
               </div>
             </div>
           </footer>
@@ -435,16 +398,14 @@ function StatCard({
   icon: React.ReactNode
 }) {
   return (
-    <div className="border-2 border-black bg-[#0E1318] p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-transform hover:translate-y-[-2px]">
+    <div className="border-2 border-black bg-[#0E1318] p-3 sm:p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-transform hover:translate-y-[-2px]">
       <div className="flex items-start justify-between">
-        <h2 className="text-4xl font-black tracking-tight text-[#53FC18]">
+        <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-[#53FC18]">
           {value}
         </h2>
-
         {icon}
       </div>
-
-      <p className="mt-1 text-xs font-black uppercase tracking-wider text-zinc-500">
+      <p className="mt-1 text-[10px] sm:text-xs font-black uppercase tracking-wider text-zinc-500 truncate">
         {label}
       </p>
     </div>

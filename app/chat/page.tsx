@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion" // Ditambahkan untuk animasi
+import { motion, AnimatePresence } from "framer-motion"
 import Sidebar from "@/components/layout/Sidebar"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
 import { socket } from "@/lib/socket"
@@ -18,6 +18,7 @@ import {
 } from "@/services/community.service"
 import { getFollowedPlayers } from "@/services/dashboard.service"
 import { useAuthStore } from "@/store/auth.store"
+import { MessageSquare, X } from "lucide-react" // Ditambahkan untuk navigasi mobile
 
 interface Message {
   id?: string
@@ -90,11 +91,14 @@ export default function ChatPage() {
   const [loadingChat, setLoadingChat] = useState(false)
   const [loadingChannels, setLoadingChannels] = useState(false)
 
+  // State baru untuk kontrol responsive drawer di mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
   const playerLimit = 15
 
   const currentChatIdRef = useRef("")
   const currentChannelIdRef = useRef("")
-  const messagesEndRef = useRef<HTMLDivElement | null>(null) // Referensi scroll otomatis
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     currentChatIdRef.current = joinedChatId
@@ -104,7 +108,6 @@ export default function ChatPage() {
     currentChannelIdRef.current = activeChannel?.id || ""
   }, [activeChannel])
 
-  // Efek scroll otomatis ke bawah setiap ada pesan baru masuk
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, typing])
@@ -180,6 +183,7 @@ export default function ChatPage() {
       setActivePlayerName("")
       setTargetUserId("")
       setContent("")
+      setIsSidebarOpen(false) // Tutup drawer setelah pilih di mobile
 
       const data = await getCommunityMessages(channel.id)
       setMessages(data || [])
@@ -204,6 +208,7 @@ export default function ChatPage() {
       setLoadingChat(true)
       setActiveChannel(null)
       setContent("")
+      setIsSidebarOpen(false) // Tutup drawer setelah pilih di mobile
 
       const privateChat = await createPrivateChat(selectedTargetId)
       const chatId = privateChat.chat.id
@@ -350,174 +355,226 @@ export default function ChatPage() {
         ? `ROOM_ID: ${joinedChatId}`
         : "PILIH PLAYER TARGET UNTUK PRIVATE CHAT"
 
+  // Sub-komponen panel kontroler internal agar tidak duplikasi markup kode
+  const renderChatController = () => (
+    <>
+      <div className="border-b-4 border-black bg-[#0B0E11] p-6 flex justify-between items-center">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            // CHAT_CONTROLLER
+          </div>
+          <h1 className="text-3xl font-black uppercase tracking-tight text-[#53FC18]">
+            Messages
+          </h1>
+        </div>
+        {/* Tombol close panel (Hanya terlihat di Mobile View Drawer) */}
+        <button 
+          onClick={() => setIsSidebarOpen(false)}
+          className="lg:hidden border-2 border-black bg-zinc-900 p-2 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+        >
+          <X size={16} className="stroke-[2.5]" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 p-4">
+        <button
+          onClick={() => {
+            setMode("community")
+            setJoinedChatId("")
+            setActivePlayerName("")
+            setTargetUserId("")
+            setMessages([])
+            if (activeChannel) openCommunityChannel(activeChannel)
+          }}
+          className={`h-11 border-2 border-black text-xs font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+            mode === "community" ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-[#191B1F] text-[#53FC18]"
+          }`}
+        >
+          Community
+        </button>
+
+        <button
+          onClick={() => {
+            setMode("private")
+            setMessages([])
+            setActiveChannel(null)
+            loadFollowedPlayers(true)
+          }}
+          className={`h-11 border-2 border-black text-xs font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+            mode === "private" ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-[#191B1F] text-[#53FC18]"
+          }`}
+        >
+          Private
+        </button>
+      </div>
+
+      {mode === "community" ? (
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 custom-scrollbar">
+          {loadingChannels ? (
+            <PanelText text="⌛ LOADING CHANNELS..." />
+          ) : channels.length === 0 ? (
+            <PanelText text="❌ BELUM ADA CHANNEL." />
+          ) : (
+            <div className="space-y-3">
+              {channels.map((channel) => {
+                const active = activeChannel?.id === channel.id
+                return (
+                  <button
+                    key={channel.id}
+                    onClick={() => openCommunityChannel(channel)}
+                    className={`w-full border-2 border-black p-4 text-left transition-all ${
+                      active 
+                        ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" 
+                        : "bg-[#191B1F] text-white hover:bg-black hover:translate-x-1"
+                    }`}
+                  >
+                    <h2 className="text-xs font-black uppercase tracking-tight">
+                      {channel.name}
+                    </h2> 
+                    <p className={`mt-1 text-[10px] font-black uppercase ${active ? "text-black/60" : "text-[#53FC18]"}`}>
+                      {channel.games?.genre || "GAME CHANNEL"} • PUBLIC
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3 p-4">
+            <input
+              value={targetUserId}
+              onChange={(e) => setTargetUserId(e.target.value)}
+              placeholder="PLAYER ID"
+              className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase tracking-wider text-white outline-none focus:border-[#53FC18]"
+            />
+            <button
+              onClick={() => startPrivateChat()}
+              disabled={loadingChat}
+              className="h-12 w-full border-2 border-black bg-white text-xs font-black uppercase tracking-widest text-black disabled:opacity-40 active:bg-zinc-200 transition-colors"
+            >
+              {loadingChat ? "CONNECTING..." : "START BY ID"}
+            </button>
+          </div>
+
+          <div className="px-4 pb-4">
+            <input
+              value={playerSearch}
+              onChange={(e) => setPlayerSearch(e.target.value)}
+              placeholder="CARI FOLLOWED PLAYER..."
+              className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase tracking-wider text-white outline-none focus:border-[#53FC18]"
+            />
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4 custom-scrollbar">
+            {loadingPlayers ? (
+              <PanelText text="⌛ LOADING FOLLOWED PLAYERS..." />
+            ) : filteredPlayers.length === 0 ? (
+              <PanelText text="❌ BELUM ADA PLAYER YANG KAMU FOLLOW." />
+            ) : (
+              <div className="space-y-3">
+                {filteredPlayers.map((player) => (
+                  <PlayerCard
+                    key={player.id}
+                    player={player}
+                    active={targetUserId === player.id}
+                    onChat={() => {
+                      setTargetUserId(player.id)
+                      startPrivateChat(player.id, player.display_name || player.username)
+                    }}
+                    onProfile={() => handleVisitProfile(player.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {hasMorePlayers && !playerSearch && (
+              <button
+                onClick={() => loadFollowedPlayers(false)}
+                disabled={loadingPlayers}
+                className="w-full border-2 border-black bg-[#191B1F] py-3 text-xs font-black uppercase tracking-widest text-[#53FC18] hover:bg-black disabled:opacity-50 transition-colors"
+              >
+                {loadingPlayers ? "Loading..." : "Load More"}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </>
+  )
+
   return (
     <ProtectedRoute>
-      <main className="flex h-screen overflow-hidden bg-[#0B0E11] font-mono text-white">
+      <main className="flex h-screen overflow-hidden bg-[#0B0E11] font-mono text-white pb-16 lg:pb-0">
         <Sidebar />
 
-        <section className="flex flex-1 overflow-hidden">
+        <section className="flex flex-1 overflow-hidden relative">
+          
+          {/* DESKTOP CONTROLLER VIEW (Hanya dirender saat desktop / lg) */}
           <aside className="hidden w-96 shrink-0 overflow-hidden border-r-4 border-black bg-[#0E1318] lg:flex lg:flex-col">
-            <div className="border-b-4 border-black bg-[#0B0E11] p-6">
-              <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                // CHAT_CONTROLLER
-              </div>
-              <h1 className="text-3xl font-black uppercase tracking-tight text-[#53FC18]">
-                Messages
-              </h1>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 p-4">
-              <button
-                onClick={() => {
-                  setMode("community")
-                  setJoinedChatId("")
-                  setActivePlayerName("")
-                  setTargetUserId("")
-                  setMessages([])
-                  if (activeChannel) openCommunityChannel(activeChannel)
-                }}
-                className={`h-11 border-2 border-black text-xs font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                  mode === "community" ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-[#191B1F] text-[#53FC18]"
-                }`}
-              >
-                Community
-              </button>
-
-              <button
-                onClick={() => {
-                  setMode("private")
-                  setMessages([])
-                  setActiveChannel(null)
-                  loadFollowedPlayers(true)
-                }}
-                className={`h-11 border-2 border-black text-xs font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                  mode === "private" ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-[#191B1F] text-[#53FC18]"
-                }`}
-              >
-                Private
-              </button>
-            </div>
-
-            {mode === "community" ? (
-              <div className="flex-1 space-y-4 overflow-y-auto p-4 custom-scrollbar">
-                {loadingChannels ? (
-                  <PanelText text="⌛ LOADING CHANNELS..." />
-                ) : channels.length === 0 ? (
-                  <PanelText text="❌ BELUM ADA CHANNEL." />
-                ) : (
-                  <div className="space-y-3">
-                    {channels.map((channel) => {
-                      const active = activeChannel?.id === channel.id
-                      return (
-                        <button
-                          key={channel.id}
-                          onClick={() => openCommunityChannel(channel)}
-                          className={`w-full border-2 border-black p-4 text-left transition-all ${
-                            active 
-                              ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" 
-                              : "bg-[#191B1F] text-white hover:bg-black hover:translate-x-1"
-                          }`}
-                        >
-                          <h2 className="text-xs font-black uppercase tracking-tight">
-                            {channel.name}
-                          </h2> 
-                          <p className={`mt-1 text-[10px] font-black uppercase ${active ? "text-black/60" : "text-[#53FC18]"}`}>
-                            {channel.games?.genre || "GAME CHANNEL"} • PUBLIC
-                          </p>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="space-y-3 p-4">
-                  <input
-                    value={targetUserId}
-                    onChange={(e) => setTargetUserId(e.target.value)}
-                    placeholder="PLAYER ID"
-                    className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase tracking-wider text-white outline-none focus:border-[#53FC18]"
-                  />
-                  <button
-                    onClick={() => startPrivateChat()}
-                    disabled={loadingChat}
-                    className="h-12 w-full border-2 border-black bg-white text-xs font-black uppercase tracking-widest text-black disabled:opacity-40 active:bg-zinc-200 transition-colors"
-                  >
-                    {loadingChat ? "CONNECTING..." : "START BY ID"}
-                  </button>
-                </div>
-
-                <div className="px-4 pb-4">
-                  <input
-                    value={playerSearch}
-                    onChange={(e) => setPlayerSearch(e.target.value)}
-                    placeholder="CARI FOLLOWED PLAYER..."
-                    className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase tracking-wider text-white outline-none focus:border-[#53FC18]"
-                  />
-                </div>
-
-                <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4 custom-scrollbar">
-                  {loadingPlayers ? (
-                    <PanelText text="⌛ LOADING FOLLOWED PLAYERS..." />
-                  ) : filteredPlayers.length === 0 ? (
-                    <PanelText text="❌ BELUM ADA PLAYER YANG KAMU FOLLOW." />
-                  ) : (
-                    <div className="space-y-3">
-                      {filteredPlayers.map((player) => (
-                        <PlayerCard
-                          key={player.id}
-                          player={player}
-                          active={targetUserId === player.id}
-                          onChat={() => {
-                            setTargetUserId(player.id)
-                            startPrivateChat(player.id, player.display_name || player.username)
-                          }}
-                          onProfile={() => handleVisitProfile(player.id)}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {hasMorePlayers && !playerSearch && (
-                    <button
-                      onClick={() => loadFollowedPlayers(false)}
-                      disabled={loadingPlayers}
-                      className="w-full border-2 border-black bg-[#191B1F] py-3 text-xs font-black uppercase tracking-widest text-[#53FC18] hover:bg-black disabled:opacity-50 transition-colors"
-                    >
-                      {loadingPlayers ? "Loading..." : "Load More"}
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
+            {renderChatController()}
           </aside>
 
-          <section className="flex flex-1 flex-col bg-[#0B0E11]">
-            <div className="flex h-20 items-center justify-between border-b-4 border-black bg-[#0E1318] px-8">
-              <div>
-                <h1 className="text-xl font-black uppercase tracking-tight">{title}</h1>
-                <p className="text-[10px] font-black uppercase tracking-wide text-zinc-500">{subtitle}</p>
+          {/* MOBILE CONTROLLER DRAWER (Slide-out dari sisi kiri layar mobile) */}
+          <AnimatePresence>
+            {isSidebarOpen && (
+              <div className="fixed inset-0 z-50 flex lg:hidden">
+                {/* Backdrop overlay gelap click-to-close */}
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/80 backdrop-blur-xs"
+                  onClick={() => setIsSidebarOpen(false)}
+                />
+                <motion.aside 
+                  initial={{ translateX: "-100%" }}
+                  animate={{ translateX: 0 }}
+                  exit={{ translateX: "-100%" }}
+                  transition={{ type: "tween", duration: 0.25 }}
+                  className="relative z-10 w-80 max-w-[85vw] h-full overflow-hidden border-r-4 border-black bg-[#0E1318] flex flex-col shadow-[4px_0px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  {renderChatController()}
+                </motion.aside>
               </div>
+            )}
+          </AnimatePresence>
+
+          {/* AREA UTAMA CHAT STREAM */}
+          <section className="flex flex-1 flex-col bg-[#0B0E11]">
+            <div className="flex h-20 items-center justify-between border-b-4 border-black bg-[#0E1318] px-4 md:px-8">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-sm md:text-xl font-black uppercase tracking-tight truncate">{title}</h1>
+                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wide text-zinc-500 truncate">{subtitle}</p>
+              </div>
+              
+              {/* BUTTON TRIGGER DRAWER (Hanya aktif di layar mobile < lg) */}
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="lg:hidden flex items-center justify-center gap-1.5 border-2 border-black bg-[#53FC18] text-black px-3 py-2 text-[10px] font-black uppercase tracking-tight shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+              >
+                <MessageSquare size={14} className="stroke-[2.5]" />
+                <span>Channels</span>
+              </button>
             </div>
 
             {error && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="m-6 border-2 border-black bg-red-950/40 p-4 text-xs font-black uppercase tracking-wider text-red-500 shadow-[3px_3px_0px_0px_rgba(239,68,68,0.2)]"
+                className="m-4 md:m-6 border-2 border-black bg-red-950/40 p-4 text-xs font-black uppercase tracking-wider text-red-500 shadow-[3px_3px_0px_0px_rgba(239,68,68,0.2)]"
               >
                 ⚠️ SYSTEM_ERROR: {error}
               </motion.div>
             )}
 
-            <div className="flex-1 space-y-4 overflow-y-auto p-8 custom-scrollbar flex flex-col">
+            <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-8 custom-scrollbar flex flex-col">
               {messages.length === 0 ? (
                 <div className="border-2 border-black bg-[#0E1318] p-8 text-center text-xs font-black uppercase tracking-widest text-zinc-600 my-auto">
                   [ NO DATA LOGGED: SESSION MESSAGES EMPTY ]
                 </div>
               ) : (
-                // AnimatePresence memantau item baru yang masuk ke dalam list
                 <AnimatePresence initial={false}>
                   {messages.map((message, index) => (
                     <ChatBubble
@@ -530,7 +587,6 @@ export default function ChatPage() {
                 </AnimatePresence>
               )}
 
-              {/* Animasi mikro berdenyut interaktif untuk indikator Typing */}
               <AnimatePresence>
                 {typing && (
                   <motion.div 
@@ -544,12 +600,11 @@ export default function ChatPage() {
                 )}
               </AnimatePresence>
               
-              {/* Anchor untuk auto-scroll */}
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleSendMessage} className="border-t-4 border-black bg-[#0E1318] p-6">
-              <div className="flex items-center gap-4 border-2 border-black bg-[#191B1F] p-2 pr-4 transition-all focus-within:border-[#53FC18] focus-within:shadow-[3px_3px_0px_0px_rgba(83,252,24,0.3)]">
+            <form onSubmit={handleSendMessage} className="border-t-4 border-black bg-[#0E1318] p-4 md:p-6">
+              <div className="flex items-center gap-2 md:gap-4 border-2 border-black bg-[#191B1F] p-2 pr-2 md:pr-4 transition-all focus-within:border-[#53FC18] focus-within:shadow-[3px_3px_0px_0px_rgba(83,252,24,0.3)]">
                 <input
                   value={content}
                   onChange={(e) => handleTyping(e.target.value)}
@@ -559,11 +614,11 @@ export default function ChatPage() {
                       ? activeChannel ? "KIRIM PESAN COMMUNITY..." : "PILIH CHANNEL COMMUNITY..."
                       : joinedChatId ? "KIRIM PESAN PRIVATE..." : "PILIH PLAYER..."
                   }
-                  className="h-12 flex-1 bg-transparent px-4 text-xs font-black uppercase tracking-wider text-white outline-none placeholder-zinc-600 disabled:opacity-40"
+                  className="h-12 flex-1 bg-transparent px-2 md:px-4 text-xs font-black uppercase tracking-wider text-white outline-none placeholder-zinc-600 disabled:opacity-40"
                 />
                 <button
                   disabled={mode === "community" ? !activeChannel : !joinedChatId}
-                  className="h-10 border-2 border-black bg-[#53FC18] px-6 text-xs font-black uppercase tracking-widest text-black disabled:opacity-40 transition-all active:translate-x-[1px] active:translate-y-[1px]"
+                  className="h-10 border-2 border-black bg-[#53FC18] px-4 md:px-6 text-xs font-black uppercase tracking-widest text-black disabled:opacity-40 transition-all active:translate-x-[1px] active:translate-y-[1px]"
                 >
                   Send
                 </button>
@@ -631,20 +686,20 @@ function PlayerCard({
 }) {
   return (
     <div className={`border-2 border-black p-3 flex items-center justify-between transition-all ${active ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" : "bg-[#191B1F] text-white hover:border-[#53FC18]"}`}>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
         <PictureProfile
           src={player.avatar_url}
           alt={player.username}
           avatarBorder={player.equipped_avatar_border}
         />
-        <div>
-          <p className="text-xs font-black uppercase">{player.display_name || player.username}</p>
-          <p className={`text-[9px] font-bold uppercase ${active ? "text-black/60" : "text-zinc-500"}`}>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black uppercase truncate">{player.display_name || player.username}</p>
+          <p className={`text-[9px] font-bold uppercase truncate ${active ? "text-black/60" : "text-zinc-500"}`}>
             {player.game_rank || "UNRANKED"}
           </p>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-1.5 shrink-0">
         <button onClick={onChat} className="border border-black bg-black px-2 py-1 text-[10px] font-black uppercase text-[#53FC18] active:scale-95 transition-transform">Chat</button>
         <button onClick={onProfile} className="border border-black bg-zinc-800 px-2 py-1 text-[10px] font-black uppercase text-white active:scale-95 transition-transform">Profile</button>
       </div>
@@ -652,7 +707,6 @@ function PlayerCard({
   )
 }
 
-// SUB KOMPONEN UTAMA YANG DIBERIKAN ANIMASI POP-IN POP-OUT
 function ChatBubble({
   message,
   mine,
@@ -683,32 +737,29 @@ function ChatBubble({
 
   return (
     <motion.div 
-      // Efek Spring Hentakan Pop Lembut Khas Arcade Retro saat Data Dimuat/Dikirim
       initial={{ opacity: 0, y: 15, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ type: "spring", stiffness: 350, damping: 26 }}
-      className={`flex w-full gap-3 ${mine ? "justify-end items-end" : "justify-start items-start"}`}
+      className={`flex w-full gap-2 md:gap-3 ${mine ? "justify-end items-end" : "justify-start items-start"}`}
     >
       {!mine && (
         <PictureProfile src={avatarUrl} alt={username} avatarBorder={borderAsset} />
       )}
 
-      {/* Ditambahkan efek hover interaktif mikro pada bayangan kotak brutalist */}
-      <div className={`max-w-md border-2 border-black p-4 select-text transition-all duration-150 ${
+      <div className={`max-w-[75%] md:max-w-md border-2 border-black p-3 md:p-4 select-text transition-all duration-150 ${
         mine 
           ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-[1px]" 
           : "bg-[#191B1F] text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[5px_5px_0px_0px_#53FC18] hover:-translate-y-[1px]"
       }`}>
-        <div className="flex items-center justify-between gap-8 mb-1">
-          <p className="text-[9px] font-black uppercase opacity-60">{username}</p>
+        <div className="flex items-center justify-between gap-4 md:gap-8 mb-1">
+          <p className="text-[9px] font-black uppercase opacity-60 truncate max-w-[120px]">{username}</p>
           {timeString && (
-            <p className="text-[8px] font-bold uppercase opacity-40 tracking-wider">
+            <p className="text-[8px] font-bold uppercase opacity-40 tracking-wider shrink-0">
               {timeString}
             </p>
           )}
         </div>
-        {/* break-words digunakan agar string panjang tidak merusak box layout */}
         <p className="text-xs font-bold uppercase break-words leading-relaxed whitespace-pre-wrap">{text}</p>
       </div>
 
