@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import Sidebar from "@/components/layout/Sidebar"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
 import MabarLoading from "@/components/ui/MabarLoading"
-import { socket } from "@/lib/socket"
 import {
   createPrivateChat,
   getChatMessages,
@@ -28,6 +27,9 @@ interface Message {
   sender_id?: string
   content?: string
   message?: string
+  image_url?: string
+  sticker_url?: string
+  message_type?: string
   is_flagged?: boolean
   created_at?: string
   profiles?: {
@@ -36,6 +38,7 @@ interface Message {
     display_name?: string
     avatar_url?: string
     equipped_avatar_border?: any
+    equipped_badges?: any[]
   }
 }
 
@@ -69,7 +72,7 @@ type ChatMode = "private" | "community"
 
 export default function ChatPage() {
   const router = useRouter()
-  const user = useAuthStore((state) => state.user)
+  const user = useAuthStore((state) => state.user) as any
 
   const [mode, setMode] = useState<ChatMode>("community")
   const [targetUserId, setTargetUserId] = useState("")
@@ -79,7 +82,9 @@ export default function ChatPage() {
   const [hasMorePlayers, setHasMorePlayers] = useState(true)
 
   const [channels, setChannels] = useState<CommunityChannel[]>([])
-  const [activeChannel, setActiveChannel] = useState<CommunityChannel | null>(null)
+  const [activeChannel, setActiveChannel] = useState<CommunityChannel | null>(
+    null
+  )
 
   const [joinedChatId, setJoinedChatId] = useState("")
   const [activePlayerName, setActivePlayerName] = useState("")
@@ -95,18 +100,7 @@ export default function ChatPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   const playerLimit = 15
-
-  const currentChatIdRef = useRef("")
-  const currentChannelIdRef = useRef("")
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    currentChatIdRef.current = joinedChatId
-  }, [joinedChatId])
-
-  useEffect(() => {
-    currentChannelIdRef.current = activeChannel?.id || ""
-  }, [activeChannel])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -134,9 +128,25 @@ export default function ChatPage() {
 
       osc.start()
       osc.stop(ctx.currentTime + 0.12)
-    } catch (error) {
-      console.error("Gagal memutar instrumen notifikasi pesan", error)
-    }
+    } catch {}
+  }
+
+  function syncMessages(nextMessages: Message[]) {
+    setMessages((prev) => {
+      const prevLastId = prev[prev.length - 1]?.id
+      const nextLastId = nextMessages[nextMessages.length - 1]?.id
+
+      if (prevLastId !== nextLastId && prev.length > 0) {
+        const newest = nextMessages[nextMessages.length - 1]
+
+        if (newest?.sender_id && newest.sender_id !== user?.id) {
+          playIncomingMessageSound()
+        }
+      }
+
+      if (JSON.stringify(prev) === JSON.stringify(nextMessages)) return prev
+      return nextMessages
+    })
   }
 
   async function loadFollowedPlayers(reset = false) {
@@ -156,7 +166,9 @@ export default function ChatPage() {
 
       setHasMorePlayers((data || []).length === playerLimit)
     } catch (error: any) {
-      setError(error.response?.data?.message || "GAGAL MENGAMBIL FOLLOWED PLAYER.")
+      setError(
+        error.response?.data?.message || "GAGAL MENGAMBIL FOLLOWED PLAYER."
+      )
     } finally {
       setLoadingPlayers(false)
     }
@@ -173,7 +185,9 @@ export default function ChatPage() {
         await openCommunityChannel(data[0])
       }
     } catch (error: any) {
-      setError(error.response?.data?.message || "GAGAL MENGAMBIL COMMUNITY CHANNEL.")
+      setError(
+        error.response?.data?.message || "GAGAL MENGAMBIL COMMUNITY CHANNEL."
+      )
     } finally {
       setLoadingChannels(false)
     }
@@ -191,10 +205,7 @@ export default function ChatPage() {
       setIsSidebarOpen(false)
 
       const data = await getCommunityMessages(channel.id)
-      setMessages(data || [])
-
-      if (!socket.connected) socket.connect()
-      socket.emit("join_community_channel", channel.id)
+      syncMessages(data || [])
     } catch (error: any) {
       setError(error.response?.data?.message || "GAGAL MASUK COMMUNITY CHANNEL.")
     }
@@ -223,10 +234,7 @@ export default function ChatPage() {
       setActivePlayerName(name || selectedTargetId)
 
       const data = await getChatMessages(chatId)
-      setMessages(data || [])
-
-      if (!socket.connected) socket.connect()
-      socket.emit("join_chat", chatId)
+      syncMessages(data || [])
     } catch (error: any) {
       setError(
         error.response?.data?.message ||
@@ -235,6 +243,20 @@ export default function ChatPage() {
     } finally {
       setLoadingChat(false)
     }
+  }
+
+  async function reloadCurrentMessages() {
+    try {
+      if (mode === "community" && activeChannel?.id) {
+        const data = await getCommunityMessages(activeChannel.id)
+        syncMessages(data || [])
+      }
+
+      if (mode === "private" && joinedChatId) {
+        const data = await getChatMessages(joinedChatId)
+        syncMessages(data || [])
+      }
+    } catch {}
   }
 
   async function handleSendMessage(e: React.FormEvent) {
@@ -252,6 +274,8 @@ export default function ChatPage() {
         }
 
         await sendCommunityMessage(activeChannel.id, content)
+        const latest = await getCommunityMessages(activeChannel.id)
+        syncMessages(latest || [])
       }
 
       if (mode === "private") {
@@ -261,6 +285,9 @@ export default function ChatPage() {
           content,
           message_type: "text",
         })
+
+        const latest = await getChatMessages(joinedChatId)
+        syncMessages(latest || [])
       }
 
       setContent("")
@@ -282,20 +309,6 @@ export default function ChatPage() {
 
   function handleTyping(value: string) {
     setContent(value)
-
-    if (mode !== "private" || !joinedChatId || !user) return
-
-    socket.emit("typing_start", {
-      chatId: joinedChatId,
-      userId: user.id,
-    })
-
-    setTimeout(() => {
-      socket.emit("typing_stop", {
-        chatId: joinedChatId,
-        userId: user.id,
-      })
-    }, 800)
   }
 
   function handleVisitProfile(playerId: string) {
@@ -304,7 +317,9 @@ export default function ChatPage() {
 
   const filteredPlayers = players.filter((player) => {
     const keyword = playerSearch.toLowerCase()
-    const name = `${player.username || ""} ${player.display_name || ""}`.toLowerCase()
+    const name = `${player.username || ""} ${
+      player.display_name || ""
+    }`.toLowerCase()
 
     return name.includes(keyword)
   })
@@ -315,77 +330,35 @@ export default function ChatPage() {
         setInitialLoading(true)
 
         await Promise.all([loadFollowedPlayers(true), loadCommunityChannels()])
-
-        if (!socket.connected) socket.connect()
-
-        if (user?.id) {
-          socket.emit("user_online", user.id)
-        }
       } finally {
         setInitialLoading(false)
       }
     }
 
     initChatPage()
-  }, [user?.id])
+  }, [])
 
   useEffect(() => {
-    function onPrivateMessage(message: Message) {
-      if (message.sender_id && user?.id && message.sender_id !== user.id) {
-        playIncomingMessageSound()
-      }
+    if (mode !== "community") return
+    if (!activeChannel?.id) return
 
-      setMessages((prev) => {
-        if (prev.some((item) => item.id === message.id)) return prev
+    const interval = setInterval(() => {
+      reloadCurrentMessages()
+    }, 2000)
 
-        if (
-          message.chat_id &&
-          currentChatIdRef.current &&
-          message.chat_id !== currentChatIdRef.current
-        ) {
-          return prev
-        }
+    return () => clearInterval(interval)
+  }, [mode, activeChannel?.id])
 
-        return [...prev, message]
-      })
-    }
+  useEffect(() => {
+    if (mode !== "private") return
+    if (!joinedChatId) return
 
-    function onCommunityMessage(message: Message) {
-      if (message.sender_id && user?.id && message.sender_id !== user.id) {
-        playIncomingMessageSound()
-      }
+    const interval = setInterval(() => {
+      reloadCurrentMessages()
+    }, 2000)
 
-      setMessages((prev) => {
-        if (prev.some((item) => item.id === message.id)) return prev
-
-        if (
-          message.channel_id &&
-          currentChannelIdRef.current &&
-          message.channel_id !== currentChannelIdRef.current
-        ) {
-          return prev
-        }
-
-        return [...prev, message]
-      })
-    }
-
-    function onTyping(data: any) {
-      if (data.userId !== user?.id) {
-        setTyping(data.typing)
-      }
-    }
-
-    socket.on("message_received", onPrivateMessage)
-    socket.on("community_message_received", onCommunityMessage)
-    socket.on("user_typing", onTyping)
-
-    return () => {
-      socket.off("message_received", onPrivateMessage)
-      socket.off("community_message_received", onCommunityMessage)
-      socket.off("user_typing", onTyping)
-    }
-  }, [user?.id])
+    return () => clearInterval(interval)
+  }, [mode, joinedChatId])
 
   const title =
     mode === "community"
@@ -434,7 +407,6 @@ export default function ChatPage() {
             setActivePlayerName("")
             setTargetUserId("")
             setMessages([])
-
             if (activeChannel) openCommunityChannel(activeChannel)
           }}
           className={`h-11 border-2 border-black text-xs font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
@@ -569,19 +541,19 @@ export default function ChatPage() {
     </>
   )
 
-if (initialLoading) {
-  return (
-    <ProtectedRoute>
-      <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
-        <Sidebar />
+  if (initialLoading) {
+    return (
+      <ProtectedRoute>
+        <main className="flex h-screen overflow-hidden bg-[#0B0E11] pb-16 font-mono text-white lg:pb-0">
+          <Sidebar />
 
-        <section className="flex flex-1 items-center justify-center">
-          <MabarLoading mode="section" />
-        </section>
-      </main>
-    </ProtectedRoute>
-  )
-}
+          <section className="flex flex-1 items-center justify-center">
+            <MabarLoading mode="section" />
+          </section>
+        </main>
+      </ProtectedRoute>
+    )
+  }
 
   return (
     <ProtectedRoute>
@@ -730,22 +702,23 @@ function PictureProfile({
   avatarBorder?: any
 }) {
   const initial = alt ? alt.charAt(0).toUpperCase() : "?"
+  const borderImage = avatarBorder?.image_url || null
 
   return (
-    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 font-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-      {src ? (
-        <img src={src} alt={alt} className="h-full w-full object-cover" />
-      ) : (
-        <span className="text-sm tracking-tighter">{initial}</span>
-      )}
+    <div className="relative h-12 w-12 shrink-0">
+      <div className="absolute inset-[5px] z-10 flex items-center justify-center overflow-hidden border-2 border-black bg-zinc-800 font-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+        {src ? (
+          <img src={src} alt={alt} className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-sm tracking-tighter">{initial}</span>
+        )}
+      </div>
 
-      {avatarBorder && (
-        <div
-          className="pointer-events-none absolute inset-0 border-2"
-          style={{
-            borderColor: avatarBorder.border_color || "#53FC18",
-            boxShadow: avatarBorder.has_glow ? "0 0 8px #53FC18" : "none",
-          }}
+      {borderImage && (
+        <img
+          src={borderImage}
+          alt={avatarBorder?.name || "Avatar Border"}
+          className="pointer-events-none absolute inset-0 z-20 h-full w-full object-contain"
         />
       )}
     </div>
@@ -831,14 +804,19 @@ function ChatBubble({
 }) {
   const profile = message.profiles
 
-  const username = mine
-    ? currentUser?.display_name || currentUser?.username || "YOU"
-    : profile?.display_name || profile?.username || "PLAYER"
+  const username =
+    profile?.display_name ||
+    profile?.username ||
+    currentUser?.display_name ||
+    currentUser?.username ||
+    currentUser?.email?.split("@")?.[0] ||
+    (mine ? "YOU" : "PLAYER")
 
-  const avatarUrl = mine ? currentUser?.avatar_url : profile?.avatar_url
-  const borderAsset = mine
-    ? currentUser?.equipped_avatar_border
-    : profile?.equipped_avatar_border
+  const avatarUrl = profile?.avatar_url || currentUser?.avatar_url || ""
+  const borderAsset =
+    profile?.equipped_avatar_border ||
+    currentUser?.equipped_avatar_border ||
+    null
 
   const text = message.content || message.message || ""
 
@@ -861,23 +839,35 @@ function ChatBubble({
       }`}
     >
       {!mine && (
-        <PictureProfile src={avatarUrl} alt={username} avatarBorder={borderAsset} />
+        <PictureProfile
+          src={avatarUrl}
+          alt={username}
+          avatarBorder={borderAsset}
+        />
       )}
 
       <div
         className={`max-w-[75%] select-text border-2 border-black p-3 transition-all duration-150 md:max-w-md md:p-4 ${
           mine
-            ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]"
-            : "bg-[#191B1F] text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_#53FC18]"
+            ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            : "bg-[#191B1F] text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
         }`}
       >
-        <div className="mb-1 flex items-center justify-between gap-4 md:gap-8">
-          <p className="max-w-[120px] truncate text-[9px] font-black uppercase opacity-60">
-            {username}
+        <div className="mb-2 flex items-center justify-between gap-4 md:gap-8">
+          <p
+            className={`max-w-[160px] truncate text-[10px] font-black uppercase tracking-wider ${
+              mine ? "text-black/60" : "text-[#53FC18]"
+            }`}
+          >
+            @{username}
           </p>
 
           {timeString && (
-            <p className="shrink-0 text-[8px] font-bold uppercase tracking-wider opacity-40">
+            <p
+              className={`shrink-0 border border-black px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${
+                mine ? "bg-black/10 text-black/50" : "bg-black text-zinc-400"
+              }`}
+            >
               {timeString}
             </p>
           )}
@@ -889,7 +879,11 @@ function ChatBubble({
       </div>
 
       {mine && (
-        <PictureProfile src={avatarUrl} alt={username} avatarBorder={borderAsset} />
+        <PictureProfile
+          src={avatarUrl}
+          alt={username}
+          avatarBorder={borderAsset}
+        />
       )}
     </motion.div>
   )
