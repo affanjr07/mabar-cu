@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Orbitron, Inter } from "next/font/google"
 import AuthProvider from "@/components/providers/AuthProvider"
 import FloatingReportButton from "@/components/report/FloatingReportButton"
+import AnnouncementProvider from "@/components/announcement/AnnouncementProvider"
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -16,7 +17,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "MABAR.CU | Find Your Ultimate Squad",
-  description: "Indonesia #1 Gaming Squad Platform. Cari teman mabar, bentuk party rank, ikut tournament esports, dan bangun komunitas gaming terbaikmu.",
+  description:
+    "Indonesia #1 Gaming Squad Platform. Cari teman mabar, bentuk party rank, ikut tournament esports, dan bangun komunitas gaming terbaikmu.",
   icons: {
     icon: "/icon.png",
   },
@@ -31,6 +33,7 @@ export default function RootLayout({
     <html lang="en" data-scroll-behavior="smooth">
       <body className={`${orbitron.variable} ${inter.variable}`}>
         <AuthProvider>
+          <AnnouncementProvider />
           {children}
           <FloatingReportButton />
         </AuthProvider>
