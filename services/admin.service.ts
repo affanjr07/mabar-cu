@@ -59,20 +59,20 @@ export async function unmuteUser(userId: string) {
 export async function createAnnouncement(data: {
   title: string
   message: string
-  starts_at?: string
-  ends_at?: string
+  starts_at?: string | null
+  ends_at?: string | null
 }) {
-  const res = await api.post("/admin/announcements", data)
+  const res = await api.post("/announcements", data)
   return res.data
 }
 
 export async function getAdminAnnouncements() {
-  const res = await api.get("/admin/announcements")
+  const res = await api.get("/announcements/admin")
   return res.data
 }
 
 export async function deleteAnnouncement(announcementId: string) {
-  const res = await api.delete(`/admin/announcements/${announcementId}`)
+  const res = await api.delete(`/announcements/${announcementId}`)
   return res.data
 }
 
