@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import Sidebar from "@/components/layout/Sidebar"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
 import AvatarFrame from "@/components/profile/AvatarFrame"
-import EquippedBadges from "@/components/profile/EquippedBadges"
 import {
   getMyProfile,
   updateMyProfile,
@@ -13,29 +12,44 @@ import {
 } from "@/services/profile.service"
 import { getMyInventory, equipItem } from "@/services/economy.service"
 
+interface ShopItem {
+  id: string
+  name: string
+  type: string
+  image_url?: string | null
+  rarity?: string
+  css_class?: string | null
+  metadata?: any
+}
+
+interface InventoryItem {
+  id: string
+  is_equipped: boolean
+  shop_items?: ShopItem
+}
+
 interface Profile {
   id: string
   username: string
-  display_name: string
-  avatar_url?: string
-  banner_url?: string
-  bio?: string
-  gender?: string
-  favorite_game?: string
-  game_rank?: string
-  preferred_role?: string
-  region?: string
-  online_status: boolean
-  followers_count: number
-  following_count: number
-  average_rating: number
-  total_ratings: number
-  badges?: string[]
+  display_name?: string
+  avatar_url?: string | null
+  banner_url?: string | null
+  bio?: string | null
+  gender?: string | null
+  favorite_game?: string | null
+  game_rank?: string | null
+  preferred_role?: string | null
+  region?: string | null
+  online_status?: boolean
+  followers_count?: number
+  following_count?: number
+  average_rating?: number
+  total_ratings?: number
 }
 
 export default function MyProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [inventory, setInventory] = useState<any[]>([])
+  const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
@@ -60,6 +74,7 @@ export default function MyProfilePage() {
   const equippedBadges = inventory
     .filter((item) => item.is_equipped && item.shop_items?.type === "badge")
     .map((item) => item.shop_items)
+    .filter(Boolean) as ShopItem[]
 
   async function loadProfile() {
     try {
@@ -71,18 +86,23 @@ export default function MyProfilePage() {
         getMyInventory(),
       ])
 
-      setProfile(profileData)
-      setInventory(Array.isArray(inventoryData) ? inventoryData : [])
+      const finalProfile = profileData?.profile || profileData
+      const finalInventory = Array.isArray(inventoryData)
+        ? inventoryData
+        : inventoryData?.inventory || []
+
+      setProfile(finalProfile)
+      setInventory(finalInventory)
 
       setForm({
-        username: profileData?.username || "",
-        display_name: profileData?.display_name || "",
-        bio: profileData?.bio || "",
-        gender: profileData?.gender || "",
-        favorite_game: profileData?.favorite_game || "",
-        game_rank: profileData?.game_rank || "",
-        preferred_role: profileData?.preferred_role || "",
-        region: profileData?.region || "",
+        username: finalProfile?.username || "",
+        display_name: finalProfile?.display_name || "",
+        bio: finalProfile?.bio || "",
+        gender: finalProfile?.gender || "",
+        favorite_game: finalProfile?.favorite_game || "",
+        game_rank: finalProfile?.game_rank || "",
+        preferred_role: finalProfile?.preferred_role || "",
+        region: finalProfile?.region || "",
       })
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Gagal mengambil profile")
@@ -94,7 +114,11 @@ export default function MyProfilePage() {
 
   async function reloadInventoryOnly() {
     const inventoryData = await getMyInventory()
-    setInventory(Array.isArray(inventoryData) ? inventoryData : [])
+    const finalInventory = Array.isArray(inventoryData)
+      ? inventoryData
+      : inventoryData?.inventory || []
+
+    setInventory(finalInventory)
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -105,21 +129,9 @@ export default function MyProfilePage() {
       setMessage("")
 
       const res = await updateMyProfile(form)
-
       const updatedProfile = res.profile || res
+
       setProfile(updatedProfile)
-
-      setForm({
-        username: updatedProfile?.username || "",
-        display_name: updatedProfile?.display_name || "",
-        bio: updatedProfile?.bio || "",
-        gender: updatedProfile?.gender || "",
-        favorite_game: updatedProfile?.favorite_game || "",
-        game_rank: updatedProfile?.game_rank || "",
-        preferred_role: updatedProfile?.preferred_role || "",
-        region: updatedProfile?.region || "",
-      })
-
       setMessage("Profile berhasil diperbarui")
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Gagal update profile")
@@ -139,12 +151,17 @@ export default function MyProfilePage() {
       const res = await uploadAvatar(file)
       const updatedProfile = res.profile || res
 
-      setProfile(updatedProfile)
+      setProfile((prev) => ({
+        ...(prev as Profile),
+        ...updatedProfile,
+      }))
+
       setMessage("Avatar berhasil diupload")
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Upload avatar gagal")
     } finally {
       setUploadingAvatar(false)
+      e.target.value = ""
     }
   }
 
@@ -159,22 +176,25 @@ export default function MyProfilePage() {
       const res = await uploadBanner(file)
       const updatedProfile = res.profile || res
 
-      setProfile(updatedProfile)
+      setProfile((prev) => ({
+        ...(prev as Profile),
+        ...updatedProfile,
+      }))
+
       setMessage("Banner berhasil diupload")
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Upload banner gagal")
     } finally {
       setUploadingBanner(false)
+      e.target.value = ""
     }
   }
 
   async function handleEquipInventory(inventoryId: string) {
     try {
       setMessage("")
-
       await equipItem(inventoryId)
       await reloadInventoryOnly()
-
       setMessage("Item berhasil diperbarui")
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Gagal memakai item")
@@ -197,11 +217,10 @@ export default function MyProfilePage() {
       <ProtectedRoute>
         <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
           <Sidebar />
-
           <section className="flex flex-1 items-center justify-center">
-            <p className="animate-pulse font-black text-[#53FC18]">
+            <div className="border-2 border-black bg-[#0E1318] p-8 text-xs font-black uppercase tracking-widest text-[#53FC18] shadow-[5px_5px_0px_0px_rgba(83,252,24,1)]">
               LOADING PROFILE...
-            </p>
+            </div>
           </section>
         </main>
       </ProtectedRoute>
@@ -218,8 +237,8 @@ export default function MyProfilePage() {
             {profile?.banner_url ? (
               <img
                 src={profile.banner_url}
-                alt="Banner"
-                className="absolute inset-0 h-full w-full object-cover opacity-40"
+                alt="Profile Banner"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-xs font-black uppercase tracking-widest text-zinc-700">
@@ -227,16 +246,16 @@ export default function MyProfilePage() {
               </div>
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11] to-transparent opacity-80" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11] via-[#0B0E11]/60 to-black/20" />
 
-            <label className="absolute bottom-6 right-8 cursor-pointer border-2 border-black bg-[#0B0E11] px-5 py-3 text-xs font-black uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#191B1F]">
+            <label className="absolute bottom-6 right-8 z-20 cursor-pointer border-2 border-black bg-[#53FC18] px-5 py-3 text-xs font-black uppercase tracking-wider text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b]">
               {uploadingBanner ? "UPLOADING..." : "CHANGE BANNER"}
-
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
                 onChange={handleBannerChange}
                 className="hidden"
+                disabled={uploadingBanner}
               />
             </label>
           </div>
@@ -246,7 +265,7 @@ export default function MyProfilePage() {
               <div className="flex flex-col gap-6 lg:flex-row lg:items-end">
                 <div className="relative inline-block self-start">
                   <AvatarFrame
-                    avatarUrl={profile?.avatar_url}
+                    avatarUrl={profile?.avatar_url || undefined}
                     username={profile?.username || "M"}
                     border={equippedAvatarBorder}
                     size="large"
@@ -260,12 +279,12 @@ export default function MyProfilePage() {
 
                   <label className="absolute -bottom-8 left-1/2 z-20 -translate-x-1/2 cursor-pointer whitespace-nowrap border-2 border-black bg-black px-4 py-2 text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition hover:text-[#53FC18]">
                     {uploadingAvatar ? "UPLOADING..." : "EDIT PHOTO"}
-
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
                       onChange={handleAvatarChange}
                       className="hidden"
+                      disabled={uploadingAvatar}
                     />
                   </label>
                 </div>
@@ -276,10 +295,10 @@ export default function MyProfilePage() {
                   </div>
 
                   <h1 className="text-5xl font-black uppercase tracking-tight text-white">
-                    {profile?.display_name || profile?.username}
+                    {profile?.display_name || profile?.username || "PLAYER"}
                   </h1>
 
-                  <p className="mt-1 text-sm font-bold text-zinc-500">
+                  <p className="mt-1 text-sm font-bold text-[#53FC18]">
                     @{profile?.username}
                   </p>
 
@@ -288,11 +307,17 @@ export default function MyProfilePage() {
                       "Lengkapi bio kamu supaya player lain makin yakin ngajak mabar."}
                   </p>
 
-                  {equippedAvatarBorder && (
-                    <div className="mt-4 inline-flex border-2 border-black bg-[#191B1F] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#53FC18]">
-                      BORDER ACTIVE: {equippedAvatarBorder.name}
-                    </div>
-                  )}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {equippedAvatarBorder && (
+                      <span className="border-2 border-black bg-[#191B1F] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#53FC18]">
+                        BORDER ACTIVE: {equippedAvatarBorder.name}
+                      </span>
+                    )}
+
+                    {equippedBadges.map((badge) => (
+                      <BadgePreview key={badge.id} badge={badge} />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -346,18 +371,11 @@ export default function MyProfilePage() {
                     placeholder="INDONESIA"
                   />
 
-                  <Select
+                  <Input
                     label="FAVORITE GAME"
                     value={form.favorite_game}
                     onChange={(value) => updateField("favorite_game", value)}
-                    options={[
-                      "",
-                      "Mobile Legends",
-                      "Valorant",
-                      "PUBG Mobile",
-                      "Free Fire",
-                      "Dota 2",
-                    ]}
+                    placeholder="MOBILE LEGENDS"
                   />
 
                   <Input
@@ -367,158 +385,97 @@ export default function MyProfilePage() {
                     placeholder="MYTHIC"
                   />
 
-                  <Select
+                  <Input
                     label="PREFERRED ROLE"
                     value={form.preferred_role}
                     onChange={(value) => updateField("preferred_role", value)}
-                    options={[
-                      "",
-                      "Jungler",
-                      "Roamer",
-                      "Mid Lane",
-                      "Gold Lane",
-                      "EXP Lane",
-                      "Duelist",
-                      "Sentinel",
-                      "Support",
-                    ]}
+                    placeholder="JUNGLER"
                   />
 
                   <div className="md:col-span-2">
-                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-zinc-500">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                       BIO
                     </label>
-
                     <textarea
                       value={form.bio}
                       onChange={(e) => updateField("bio", e.target.value)}
-                      placeholder="CERITAKAN GAYA BERMAIN KAMU..."
-                      className="min-h-32 w-full border-2 border-black bg-[#191B1F] px-5 py-4 text-xs font-bold uppercase tracking-wide text-white outline-none focus:border-[#53FC18]"
+                      placeholder="CERITAKAN STYLE MAIN KAMU..."
+                      className="mt-2 min-h-28 w-full border-2 border-black bg-[#191B1F] p-4 text-xs font-bold uppercase text-white outline-none focus:border-[#53FC18]"
                     />
                   </div>
                 </div>
 
                 <button
                   disabled={saving}
-                  className="mt-8 border-2 border-black bg-[#53FC18] px-8 py-4 text-xs font-black uppercase tracking-widest text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] disabled:opacity-50"
+                  className="mt-8 h-12 w-full border-2 border-black bg-[#53FC18] text-xs font-black uppercase tracking-widest text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50"
                 >
                   {saving ? "SAVING..." : "SAVE PROFILE"}
                 </button>
               </form>
 
-              <div className="space-y-6">
-                <div className="border-2 border-black bg-[#0E1318] p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                  <h2 className="text-xl font-black uppercase tracking-tight text-white">
-                    CURRENT GAMER INFO
-                  </h2>
+              <div className="border-2 border-black bg-[#0E1318] p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                <h2 className="text-2xl font-black uppercase tracking-tight text-white">
+                  COSMETICS
+                </h2>
 
-                  <div className="mt-6 space-y-4">
-                    <Info label="GAME" value={profile?.favorite_game} />
-                    <Info label="RANK" value={profile?.game_rank} />
-                    <Info label="ROLE" value={profile?.preferred_role} />
-                    <Info label="REGION" value={profile?.region} />
-                  </div>
-                </div>
+                <p className="mt-2 text-xs font-bold uppercase text-zinc-500">
+                  Pilih avatar border dan badge yang sudah kamu beli.
+                </p>
 
-                <div className="border-2 border-black bg-[#0E1318] p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                  <h2 className="text-xl font-black uppercase tracking-tight text-white">
-                    EQUIPPED BADGES
-                  </h2>
+                <div className="mt-6 space-y-4">
+                  {inventory.length === 0 ? (
+                    <p className="text-xs font-black uppercase text-zinc-600">
+                      Inventory masih kosong.
+                    </p>
+                  ) : (
+                    inventory.map((item) => {
+                      const shopItem = item.shop_items
+                      if (!shopItem) return null
 
-                  <div className="mt-6">
-                    <EquippedBadges badges={equippedBadges} />
-                  </div>
-                </div>
-              </div>
-            </div>
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between gap-3 border-2 border-black bg-[#191B1F] p-3"
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            {shopItem.image_url ? (
+                              <img
+                                src={shopItem.image_url}
+                                alt={shopItem.name}
+                                className="h-10 w-10 object-contain"
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 items-center justify-center border border-black bg-[#0B0E11] text-xs font-black text-[#53FC18]">
+                                ★
+                              </div>
+                            )}
 
-            <div className="mt-12 border-2 border-black bg-[#0E1318] p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-              <h2 className="text-2xl font-black uppercase tracking-tight text-white">
-                INVENTORY COSMETICS
-              </h2>
-
-              <p className="mt-2 text-xs font-bold uppercase text-zinc-500">
-                Avatar border hanya 1 yang aktif. Badge bisa dipakai banyak, maksimal 5.
-              </p>
-
-              <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {inventory.length === 0 ? (
-                  <div className="border-2 border-dashed border-black bg-[#191B1F] p-6 text-xs font-black uppercase text-zinc-500">
-                    BELUM ADA ITEM. BELI DULU DI SHOP.
-                  </div>
-                ) : (
-                  inventory.map((item) => {
-                    const shopItem = item.shop_items
-                    const isBorder = shopItem?.type === "avatar_border"
-                    const isBadge = shopItem?.type === "badge"
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="border-2 border-black bg-[#191B1F] p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-sm font-black uppercase text-[#53FC18]">
-                              {shopItem?.name}
-                            </p>
-
-                            <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                              {shopItem?.type} • {shopItem?.rarity || "COMMON"}
-                            </p>
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-black uppercase text-white">
+                                {shopItem.name}
+                              </p>
+                              <p className="text-[9px] font-black uppercase text-[#53FC18]">
+                                {shopItem.type} • {shopItem.rarity || "common"}
+                              </p>
+                            </div>
                           </div>
 
-                          {item.is_equipped && (
-                            <span className="border border-black bg-yellow-400 px-2 py-1 text-[9px] font-black uppercase text-black">
-                              EQUIPPED
-                            </span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleEquipInventory(item.id)}
+                            className={`border-2 border-black px-3 py-2 text-[10px] font-black uppercase ${
+                              item.is_equipped
+                                ? "bg-yellow-400 text-black"
+                                : "bg-[#53FC18] text-black"
+                            }`}
+                          >
+                            {item.is_equipped ? "EQUIPPED" : "EQUIP"}
+                          </button>
                         </div>
-
-                        <div className="mt-5 flex min-h-32 items-center justify-center border-2 border-black bg-[#0B0E11] p-4">
-                          {isBorder ? (
-                            <AvatarFrame
-                              avatarUrl={profile?.avatar_url}
-                              username={profile?.username || "M"}
-                              border={shopItem}
-                              size="large"
-                            />
-                          ) : isBadge ? (
-                            <EquippedBadges badges={[shopItem]} />
-                          ) : shopItem?.image_url ? (
-                            <img
-                              src={shopItem.image_url}
-                              alt={shopItem.name}
-                              className="h-28 w-full object-contain"
-                            />
-                          ) : (
-                            <p className="text-xs font-black uppercase text-zinc-600">
-                              NO PREVIEW
-                            </p>
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleEquipInventory(item.id)}
-                          className={`mt-5 w-full border-2 border-black py-3 text-xs font-black uppercase text-black ${
-                            item.is_equipped ? "bg-yellow-400" : "bg-[#53FC18]"
-                          }`}
-                        >
-                          {item.is_equipped
-                            ? isBadge
-                              ? "LEPAS BADGE"
-                              : "SEDANG DIPAKAI"
-                            : isBorder
-                              ? "PAKAI BORDER"
-                              : isBadge
-                                ? "PAKAI BADGE"
-                                : "PAKAI ITEM"}
-                        </button>
-                      </div>
-                    )
-                  })
-                )}
+                      )
+                    })
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -528,14 +485,24 @@ export default function MyProfilePage() {
   )
 }
 
+function BadgePreview({ badge }: { badge: ShopItem }) {
+  return (
+    <span className="inline-flex items-center gap-2 border-2 border-black bg-[#191B1F] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#53FC18]">
+      {badge.image_url && (
+        <img src={badge.image_url} alt={badge.name} className="h-5 w-5 object-contain" />
+      )}
+      {badge.name}
+    </span>
+  )
+}
+
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="border-2 border-black bg-[#0E1318] p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-      <h2 className="text-4xl font-black tracking-tight text-[#53FC18]">
+      <h2 className="text-4xl font-black uppercase tracking-tight text-[#53FC18]">
         {value}
       </h2>
-
-      <p className="mt-2 text-xs font-black uppercase tracking-widest text-zinc-500">
+      <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
         {label}
       </p>
     </div>
@@ -554,18 +521,17 @@ function Input({
   placeholder?: string
 }) {
   return (
-    <div>
-      <label className="mb-2 block text-xs font-black uppercase tracking-wider text-zinc-500">
+    <label>
+      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
         {label}
-      </label>
-
+      </span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder?.toUpperCase()}
-        className="h-14 w-full border-2 border-black bg-[#191B1F] px-5 text-xs font-bold uppercase tracking-wide text-white outline-none focus:border-[#53FC18]"
+        placeholder={placeholder}
+        className="mt-2 h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-bold uppercase text-white outline-none focus:border-[#53FC18]"
       />
-    </div>
+    </label>
   )
 }
 
@@ -581,40 +547,21 @@ function Select({
   options: string[]
 }) {
   return (
-    <div>
-      <label className="mb-2 block text-xs font-black uppercase tracking-wider text-zinc-500">
+    <label>
+      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
         {label}
-      </label>
-
+      </span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-14 w-full border-2 border-black bg-[#191B1F] px-5 text-xs font-bold uppercase tracking-wide text-white outline-none focus:border-[#53FC18]"
+        className="mt-2 h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-bold uppercase text-white outline-none focus:border-[#53FC18]"
       >
         {options.map((option) => (
-          <option
-            key={option}
-            value={option}
-            className="bg-[#0B0E11] font-bold text-white"
-          >
-            {option.toUpperCase() || "SELECT OPTION"}
+          <option key={option} value={option}>
+            {option || "PILIH"}
           </option>
         ))}
       </select>
-    </div>
-  )
-}
-
-function Info({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className="border border-black bg-[#191B1F] p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-      <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
-        {label}
-      </p>
-
-      <p className="mt-1 text-xs font-black uppercase text-white">
-        {value || "-"}
-      </p>
-    </div>
+    </label>
   )
 }
