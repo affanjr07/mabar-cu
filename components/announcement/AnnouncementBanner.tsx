@@ -1,173 +1,181 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { X, Megaphone, Radio, BellRing } from "lucide-react"
-import { socket } from "@/lib/socket"
 import { getActiveAnnouncements } from "@/services/announcement.service"
 
+interface Announcement {
+  id: string
+  title: string
+  message: string
+  type?: string
+  starts_at?: string | null
+  ends_at?: string | null
+  created_at?: string
+}
+
+const STORAGE_KEY = "mabar_seen_announcements"
+
+function getSeenIds(): string[] {
+  if (typeof window === "undefined") return []
+
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")
+  } catch {
+    return []
+  }
+}
+
+function saveSeenId(id: string) {
+  const seenIds = getSeenIds()
+  const nextIds = Array.from(new Set([...seenIds, id]))
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextIds))
+}
+
+function isAnnouncementActive(item: Announcement) {
+  const now = new Date()
+
+  if (item.starts_at && new Date(item.starts_at) > now) return false
+  if (item.ends_at && new Date(item.ends_at) < now) return false
+
+  return true
+}
+
 export default function AnnouncementBanner() {
-  const [announcements, setAnnouncements] = useState<any[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [hiddenIds, setHiddenIds] = useState<string[]>([])
-  
-  // State bantuan untuk memicu re-render berkala (mengecek jadwal masuk)
-  const [, setTick] = useState(0)
-  
+  const [loading, setLoading] = useState(false)
+
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const previousVisibleIds = useRef<string[]>([])
+  const hasLoadedOnce = useRef(false)
+
+  async function loadAnnouncements() {
+    if (loading) return
+
+    try {
+      setLoading(true)
+
+      const data = await getActiveAnnouncements()
+      const list = Array.isArray(data) ? data : []
+
+      setAnnouncements(list)
+    } catch (error: any) {
+      console.log("ANNOUNCEMENT ERROR:", error.response?.data || error.message)
+    } finally {
+      setLoading(false)
+      hasLoadedOnce.current = true
+    }
+  }
+
+  function playNotificationSound() {
+    if (!audioRef.current) return
+
+    audioRef.current.currentTime = 0
+    audioRef.current.play().catch(() => {
+      console.warn("Sound blocked until user interacts with page.")
+    })
+  }
+
+  function handleDismiss(id: string) {
+    saveSeenId(id)
+    setHiddenIds((prev) => Array.from(new Set([...prev, id])))
+  }
 
   useEffect(() => {
     audioRef.current = new Audio("/sounds/broadcast-notif.mp3")
-    audioRef.current.volume = 0.6
-  }, [])
+    audioRef.current.volume = 0.5
 
-  async function loadAnnouncements() {
-    try {
-      const data = await getActiveAnnouncements()
-      console.log("ACTIVE ANNOUNCEMENTS:", data)
-      setAnnouncements(data || [])
-    } catch (error: any) {
-      console.log("ANNOUNCEMENT ERROR:", error.response?.data || error.message)
-      setAnnouncements([])
-    }
-  }
+    const seenIds = getSeenIds()
+    setHiddenIds(seenIds)
 
-  const playNotificationSound = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0 
-      audioRef.current.play().catch((err) => {
-        console.warn("Autoplay suara diblokir oleh browser sampai user berinteraksi.", err)
-      })
-    }
-  }
-
-  useEffect(() => {
     loadAnnouncements()
 
-    if (!socket.connected) socket.connect()
+    const interval = setInterval(() => {
+      loadAnnouncements()
+    }, 7000)
 
-    socket.on("announcement_received", (announcement) => {
-      setAnnouncements((prev) => {
-        const exists = prev.some((item) => item.id === announcement.id)
-        if (exists) return prev
-        
-        // Memeriksa jika announcement bersifat instan (tanpa starts_at) atau sudah lewat waktunya
-        const now = new Date()
-        const startTime = announcement.starts_at ? new Date(announcement.starts_at) : null
-        
-        if (!startTime || startTime <= now) {
-          // Jika instan/sudah masuk waktunya, langsung bunyikan notifikasi
-          playNotificationSound()
-        }
-        
-        return [announcement, ...prev]
-      })
-    })
-
-    // SYSTEM TICKER: Mengecek status waktu setiap 1 detik
-    const timer = setInterval(() => {
-      setTick((t) => t + 1)
-    }, 1000)
-
-    return () => {
-      socket.off("announcement_received")
-      clearInterval(timer)
-    }
+    return () => clearInterval(interval)
   }, [])
 
-  // --- LOGIKA FILTERING JADWAL AKTIF ---
-  const now = new Date()
-
   const visibleAnnouncements = announcements.filter((item) => {
-    // 1. Jangan munculkan jika di-dismiss oleh user
+    if (!item?.id) return false
     if (hiddenIds.includes(item.id)) return false
-
-    // 2. Cek batasan Waktu Mulai (starts_at)
-    if (item.starts_at) {
-      const startTime = new Date(item.starts_at)
-      if (startTime > now) return false // Belum waktunya muncul!
-    }
-
-    // 3. Cek batasan Waktu Berakhir (ends_at)
-    if (item.ends_at) {
-      const endTime = new Date(item.ends_at)
-      if (endTime < now) return false // Sudah kedaluwarsa!
-    }
-
-    return true
+    return isAnnouncementActive(item)
   })
 
-  // Efek samping: Bunyikan suara tepat saat pengumuman terjadwal berubah status menjadi 'visible'
-  const prevVisibleIds = useRef<string[]>([])
   useEffect(() => {
-    const currentIds = visibleAnnouncements.map(a => a.id)
-    // Cari tahu apakah ada ID baru yang sebelumnya tidak terlihat tapi sekarang terlihat
-    const hasNewActivation = currentIds.some(id => !prevVisibleIds.current.includes(id))
-    
-    if (hasNewActivation && prevVisibleIds.current.length > 0) {
+    const currentIds = visibleAnnouncements.map((item) => item.id)
+    const hasNew = currentIds.some(
+      (id) => !previousVisibleIds.current.includes(id)
+    )
+
+    if (hasLoadedOnce.current && hasNew && previousVisibleIds.current.length > 0) {
       playNotificationSound()
     }
-    prevVisibleIds.current = currentIds
+
+    previousVisibleIds.current = currentIds
   }, [visibleAnnouncements])
 
   if (visibleAnnouncements.length === 0) return null
 
   return (
-    <div className="space-y-4 font-mono p-4 md:p-6 max-w-7xl mx-auto w-full">
+    <div className="fixed inset-x-0 top-4 z-[9999] mx-auto w-full max-w-7xl space-y-4 px-4 font-mono md:top-6 md:px-6">
       {visibleAnnouncements.map((item) => (
         <div
           key={item.id}
-          className="relative overflow-hidden border-4 border-black bg-[#53FC18] p-5 text-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all duration-300 animate-in fade-in slide-in-from-top-6"
+          className="relative overflow-hidden border-4 border-black bg-[#53FC18] p-5 text-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
         >
-          <div className="absolute top-0 left-0 bottom-0 w-3 bg-black" />
+          <div className="absolute bottom-0 left-0 top-0 w-3 bg-black" />
 
-          <div className="absolute top-1 left-4 right-0 pointer-events-none select-none opacity-[0.06] whitespace-nowrap overflow-hidden text-[80px] font-black tracking-tighter uppercase leading-none">
-            <div className="inline-block animate-marquee-fast">
-              SYSTEM BROADCAST CRITICAL INBOUND // LIVE STREAMING // NETWORK EVENT //&nbsp;
-            </div>
-            <div className="inline-block animate-marquee-fast">
-              SYSTEM BROADCAST CRITICAL INBOUND // LIVE STREAMING // NETWORK EVENT //&nbsp;
-            </div>
+          <div className="pointer-events-none absolute left-4 right-0 top-1 select-none overflow-hidden whitespace-nowrap text-[70px] font-black uppercase leading-none tracking-tighter opacity-[0.06]">
+            SYSTEM BROADCAST // MABAR.CU // SYSTEM BROADCAST //
           </div>
 
           <button
             type="button"
-            onClick={() => setHiddenIds((prev) => [...prev, item.id])}
-            className="absolute right-3 top-3 z-20 border-2 border-black bg-black p-2 text-[#53FC18] transition-all hover:bg-neutral-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-            title="Dismiss Announcement"
+            onClick={() => handleDismiss(item.id)}
+            className="absolute right-3 top-3 z-20 border-2 border-black bg-black p-2 text-[#53FC18] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-neutral-900"
           >
             <X size={16} className="stroke-[3]" />
           </button>
 
           <div className="relative z-10 flex items-start gap-5 pl-4">
-            <div className="hidden md:flex h-14 w-14 shrink-0 items-center justify-center border-4 border-black bg-black text-[#53FC18] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative">
-              <span className="absolute inset-0 border border-dashed border-[#53FC18] animate-spin duration-1000 opacity-40" />
+            <div className="relative hidden h-14 w-14 shrink-0 items-center justify-center border-4 border-black bg-black text-[#53FC18] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] md:flex">
+              <span className="absolute inset-0 animate-spin border border-dashed border-[#53FC18] opacity-40" />
               <Megaphone size={24} className="animate-bounce" />
             </div>
 
             <div className="flex-1 pr-10">
               <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-widest text-black/80">
-                <div className="flex items-center gap-1.5 bg-black text-[#53FC18] px-2 py-0.5 border border-black">
+                <div className="flex items-center gap-1.5 border border-black bg-black px-2 py-0.5 text-[#53FC18]">
                   <Radio size={12} className="animate-pulse text-red-500" />
                   <span>ANNOUNCEMENT</span>
                 </div>
-                <span>// ID: {item.id?.substring(0, 8)}</span>
+
+                <span>// ID: {item.id.substring(0, 8)}</span>
+
                 {item.created_at && (
-                  <span className="hidden sm:inline">• ARRIVED AT {new Date(item.created_at).toLocaleTimeString("id-ID")}</span>
+                  <span className="hidden sm:inline">
+                    • {new Date(item.created_at).toLocaleTimeString("id-ID")}
+                  </span>
                 )}
               </div>
 
-              <h2 className="mt-2 text-2xl font-black uppercase tracking-tight md:text-3xl break-words leading-none">
+              <h2 className="mt-2 break-words text-2xl font-black uppercase leading-none tracking-tight md:text-3xl">
                 {item.title}
               </h2>
 
-              <p className="mt-2 text-sm font-bold uppercase leading-relaxed text-black/90 max-w-5xl break-words bg-black/5 p-3 border border-black/10">
+              <p className="mt-2 max-w-5xl break-words border border-black/10 bg-black/5 p-3 text-sm font-bold uppercase leading-relaxed text-black/90">
                 {item.message}
               </p>
             </div>
           </div>
 
-          <div className="absolute bottom-2 right-4 opacity-30 text-[10px] font-black tracking-tighter select-none pointer-events-none hidden md:flex items-center gap-2">
+          <div className="pointer-events-none absolute bottom-2 right-4 hidden select-none items-center gap-2 text-[10px] font-black tracking-tighter opacity-30 md:flex">
             <BellRing size={12} className="animate-ping text-black" />
-            <span>||||| | |||| || ||| |||| | || OVERRIDE_2026</span>
+            <span>||||| | |||| || ||| |||| | || LIVE_BROADCAST</span>
           </div>
         </div>
       ))}

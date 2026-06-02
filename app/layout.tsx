@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { Orbitron, Inter } from "next/font/google"
 import AuthProvider from "@/components/providers/AuthProvider"
 import FloatingReportButton from "@/components/report/FloatingReportButton"
-import AnnouncementProvider from "@/components/announcement/AnnouncementProvider"
+import AnnouncementBanner from "@/components/announcement/AnnouncementBanner"
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -33,7 +33,7 @@ export default function RootLayout({
     <html lang="en" data-scroll-behavior="smooth">
       <body className={`${orbitron.variable} ${inter.variable}`}>
         <AuthProvider>
-          <AnnouncementProvider />
+          <AnnouncementBanner />
           {children}
           <FloatingReportButton />
         </AuthProvider>
