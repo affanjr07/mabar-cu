@@ -46,17 +46,17 @@ const promotions = [
 
 // Mock Data Game Populer
 const featuredGames = [
-  { name: "Mobile Legends", activeRooms: "2.4K Players", genre: "MOBA" },
-  { name: "Valorant", activeRooms: "1.8K Players", genre: "FPS" },
-  { name: "PUBG Mobile", activeRooms: "950 Players", genre: "BATTLE ROYALE" },
-  { name: "Dota 2", activeRooms: "420 Players", genre: "MOBA" },
+  { name: "Mobile Legends", activeRooms: "", genre: "MOBA" },
+  { name: "Valorant", activeRooms: "", genre: "FPS" },
+  { name: "PUBG Mobile", activeRooms: "", genre: "BATTLE ROYALE" },
+  { name: "Dota 2", activeRooms: "", genre: "MOBA" },
 ]
 
 export default function HomePage() {
   const router = useRouter()
   const [currentSlide, setCurrentSlide] = useState(0)
 
-  // Dibungkus useCallback supaya memori lebih efisien/ringan saat re-render
+ 
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev + 1) % promotions.length)
   }, [])
@@ -267,7 +267,7 @@ export default function HomePage() {
             <p className="mt-4 md:mt-6 text-[11px] md:text-xs font-bold uppercase tracking-wide leading-relaxed text-zinc-400">
               Ikuti kompetisi esports nasional terbesar tahun ini. 
               Bentuk tim, bantai bracket kualifikasi, dan rebut total prize pool senilai 
-              <span className="inline-block text-white bg-[#191B1F] px-1.5 py-0.5 mt-1 sm:mt-0 sm:ml-1 font-black whitespace-nowrap">Rp 50.000.000</span>.
+              <span className="inline-block text-white bg-[#191B1F] px-1.5 py-0.5 mt-1 sm:mt-0 sm:ml-1 font-black whitespace-nowrap">Coming Soon</span>.
             </p>
 
             <button 
