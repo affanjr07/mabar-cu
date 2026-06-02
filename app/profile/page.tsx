@@ -349,7 +349,6 @@ export default function MyProfilePage() {
     </ProtectedRoute>
   )
 }
-  }
 
   return (
     <ProtectedRoute>
