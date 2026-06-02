@@ -120,13 +120,19 @@ export default function TournamentPage() {
 
   const isInitialLoading = loading && tournaments.length === 0 && games.length === 0
 
-  if (isInitialLoading) {
-    return (
-      <ProtectedRoute>
-        <MabarLoading />
-      </ProtectedRoute>
-    )
-  }
+if (isInitialLoading) {
+  return (
+    <ProtectedRoute>
+      <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
+        <Sidebar />
+
+        <section className="flex flex-1 items-center justify-center">
+          <MabarLoading mode="section" />
+        </section>
+      </main>
+    </ProtectedRoute>
+  )
+}
 
   return (
     <ProtectedRoute>

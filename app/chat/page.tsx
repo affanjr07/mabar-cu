@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import Sidebar from "@/components/layout/Sidebar"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
+import MabarLoading from "@/components/ui/MabarLoading"
 import { socket } from "@/lib/socket"
 import {
   createPrivateChat,
@@ -18,7 +19,7 @@ import {
 } from "@/services/community.service"
 import { getFollowedPlayers } from "@/services/dashboard.service"
 import { useAuthStore } from "@/store/auth.store"
-import { MessageSquare, X } from "lucide-react" // Ditambahkan untuk navigasi mobile
+import { MessageSquare, X } from "lucide-react"
 
 interface Message {
   id?: string
@@ -87,11 +88,10 @@ export default function ChatPage() {
   const [content, setContent] = useState("")
   const [typing, setTyping] = useState(false)
   const [error, setError] = useState("")
+  const [initialLoading, setInitialLoading] = useState(true)
   const [loadingPlayers, setLoadingPlayers] = useState(false)
   const [loadingChat, setLoadingChat] = useState(false)
   const [loadingChannels, setLoadingChannels] = useState(false)
-
-  // State baru untuk kontrol responsive drawer di mobile
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   const playerLimit = 15
@@ -112,9 +112,11 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, typing])
 
-  const playIncomingMessageSound = () => {
+  function playIncomingMessageSound() {
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+      const AudioContext =
+        window.AudioContext || (window as any).webkitAudioContext
+
       if (!AudioContext) return
 
       const ctx = new AudioContext()
@@ -122,8 +124,8 @@ export default function ChatPage() {
       const gain = ctx.createGain()
 
       osc.type = "sine"
-      osc.frequency.setValueAtTime(830.61, ctx.currentTime) 
-      
+      osc.frequency.setValueAtTime(830.61, ctx.currentTime)
+
       gain.gain.setValueAtTime(0.15, ctx.currentTime)
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
 
@@ -132,14 +134,15 @@ export default function ChatPage() {
 
       osc.start()
       osc.stop(ctx.currentTime + 0.12)
-    } catch (e) {
-      console.error("Gagal memutar instrumen notifikasi pesan", e)
+    } catch (error) {
+      console.error("Gagal memutar instrumen notifikasi pesan", error)
     }
   }
 
   async function loadFollowedPlayers(reset = false) {
     try {
       setLoadingPlayers(true)
+
       const nextOffset = reset ? 0 : playersOffset
       const data = await getFollowedPlayers(playerLimit, nextOffset)
 
@@ -150,6 +153,7 @@ export default function ChatPage() {
         setPlayers((prev) => [...prev, ...(data || [])])
         setPlayersOffset((prev) => prev + playerLimit)
       }
+
       setHasMorePlayers((data || []).length === playerLimit)
     } catch (error: any) {
       setError(error.response?.data?.message || "GAGAL MENGAMBIL FOLLOWED PLAYER.")
@@ -161,6 +165,7 @@ export default function ChatPage() {
   async function loadCommunityChannels() {
     try {
       setLoadingChannels(true)
+
       const data = await getCommunityChannels()
       setChannels(data || [])
 
@@ -183,7 +188,7 @@ export default function ChatPage() {
       setActivePlayerName("")
       setTargetUserId("")
       setContent("")
-      setIsSidebarOpen(false) // Tutup drawer setelah pilih di mobile
+      setIsSidebarOpen(false)
 
       const data = await getCommunityMessages(channel.id)
       setMessages(data || [])
@@ -197,6 +202,7 @@ export default function ChatPage() {
 
   async function startPrivateChat(id?: string, name?: string) {
     const selectedTargetId = id || targetUserId
+
     if (!selectedTargetId.trim()) {
       setError("PILIH PLAYER TERLEBIH DAHULU.")
       return
@@ -208,7 +214,7 @@ export default function ChatPage() {
       setLoadingChat(true)
       setActiveChannel(null)
       setContent("")
-      setIsSidebarOpen(false) // Tutup drawer setelah pilih di mobile
+      setIsSidebarOpen(false)
 
       const privateChat = await createPrivateChat(selectedTargetId)
       const chatId = privateChat.chat.id
@@ -222,7 +228,10 @@ export default function ChatPage() {
       if (!socket.connected) socket.connect()
       socket.emit("join_chat", chatId)
     } catch (error: any) {
-      setError(error.response?.data?.message || "GAGAL MEMULAI CHAT. PASTIKAN KAMU SUDAH FOLLOW PLAYER INI.")
+      setError(
+        error.response?.data?.message ||
+          "GAGAL MEMULAI CHAT. PASTIKAN KAMU SUDAH FOLLOW PLAYER INI."
+      )
     } finally {
       setLoadingChat(false)
     }
@@ -230,45 +239,62 @@ export default function ChatPage() {
 
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault()
+
     if (!content.trim()) return
 
     try {
       setError("")
+
       if (mode === "community") {
         if (!activeChannel) {
           setError("PILIH COMMUNITY CHANNEL TERLEBIH DAHULU.")
           return
         }
+
         await sendCommunityMessage(activeChannel.id, content)
       }
 
       if (mode === "private") {
         if (!joinedChatId) return
+
         await sendChatMessage(joinedChatId, {
           content,
           message_type: "text",
         })
       }
+
       setContent("")
       setTyping(false)
     } catch (error: any) {
       if (error.response?.data?.code === "USER_MUTED") {
         const data = error.response.data
-        const until = data.muted_until ? new Date(data.muted_until).toLocaleString("id-ID") : "Permanen"
+        const until = data.muted_until
+          ? new Date(data.muted_until).toLocaleString("id-ID")
+          : "Permanen"
+
         setError(`KAMU SEDANG DIMUTE. ALASAN: ${data.reason}. SAMPAI: ${until}`)
         return
       }
+
       setError(error.response?.data?.message || "GAGAL MENGIRIM PESAN.")
     }
   }
 
   function handleTyping(value: string) {
     setContent(value)
+
     if (mode !== "private" || !joinedChatId || !user) return
 
-    socket.emit("typing_start", { chatId: joinedChatId, userId: user.id })
+    socket.emit("typing_start", {
+      chatId: joinedChatId,
+      userId: user.id,
+    })
+
     setTimeout(() => {
-      socket.emit("typing_stop", { chatId: joinedChatId, userId: user.id })
+      socket.emit("typing_stop", {
+        chatId: joinedChatId,
+        userId: user.id,
+      })
     }, 800)
   }
 
@@ -279,19 +305,31 @@ export default function ChatPage() {
   const filteredPlayers = players.filter((player) => {
     const keyword = playerSearch.toLowerCase()
     const name = `${player.username || ""} ${player.display_name || ""}`.toLowerCase()
+
     return name.includes(keyword)
   })
 
   useEffect(() => {
-    loadFollowedPlayers(true)
-    loadCommunityChannels()
+    async function initChatPage() {
+      try {
+        setInitialLoading(true)
 
-    if (!socket.connected) socket.connect()
+        await Promise.all([loadFollowedPlayers(true), loadCommunityChannels()])
 
-    if (user?.id) {
-      socket.emit("user_online", user.id)
+        if (!socket.connected) socket.connect()
+
+        if (user?.id) {
+          socket.emit("user_online", user.id)
+        }
+      } finally {
+        setInitialLoading(false)
+      }
     }
 
+    initChatPage()
+  }, [user?.id])
+
+  useEffect(() => {
     function onPrivateMessage(message: Message) {
       if (message.sender_id && user?.id && message.sender_id !== user.id) {
         playIncomingMessageSound()
@@ -299,9 +337,15 @@ export default function ChatPage() {
 
       setMessages((prev) => {
         if (prev.some((item) => item.id === message.id)) return prev
-        if (message.chat_id && currentChatIdRef.current && message.chat_id !== currentChatIdRef.current) {
+
+        if (
+          message.chat_id &&
+          currentChatIdRef.current &&
+          message.chat_id !== currentChatIdRef.current
+        ) {
           return prev
         }
+
         return [...prev, message]
       })
     }
@@ -313,9 +357,15 @@ export default function ChatPage() {
 
       setMessages((prev) => {
         if (prev.some((item) => item.id === message.id)) return prev
-        if (message.channel_id && currentChannelIdRef.current && message.channel_id !== currentChannelIdRef.current) {
+
+        if (
+          message.channel_id &&
+          currentChannelIdRef.current &&
+          message.channel_id !== currentChannelIdRef.current
+        ) {
           return prev
         }
+
         return [...prev, message]
       })
     }
@@ -355,22 +405,22 @@ export default function ChatPage() {
         ? `ROOM_ID: ${joinedChatId}`
         : "PILIH PLAYER TARGET UNTUK PRIVATE CHAT"
 
-  // Sub-komponen panel kontroler internal agar tidak duplikasi markup kode
   const renderChatController = () => (
     <>
-      <div className="border-b-4 border-black bg-[#0B0E11] p-6 flex justify-between items-center">
+      <div className="flex items-center justify-between border-b-4 border-black bg-[#0B0E11] p-6">
         <div>
           <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
             // CHAT_CONTROLLER
           </div>
+
           <h1 className="text-3xl font-black uppercase tracking-tight text-[#53FC18]">
             Messages
           </h1>
         </div>
-        {/* Tombol close panel (Hanya terlihat di Mobile View Drawer) */}
-        <button 
+
+        <button
           onClick={() => setIsSidebarOpen(false)}
-          className="lg:hidden border-2 border-black bg-zinc-900 p-2 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+          className="border-2 border-black bg-zinc-900 p-2 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] lg:hidden"
         >
           <X size={16} className="stroke-[2.5]" />
         </button>
@@ -384,10 +434,13 @@ export default function ChatPage() {
             setActivePlayerName("")
             setTargetUserId("")
             setMessages([])
+
             if (activeChannel) openCommunityChannel(activeChannel)
           }}
           className={`h-11 border-2 border-black text-xs font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-            mode === "community" ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-[#191B1F] text-[#53FC18]"
+            mode === "community"
+              ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+              : "bg-[#191B1F] text-[#53FC18]"
           }`}
         >
           Community
@@ -401,7 +454,9 @@ export default function ChatPage() {
             loadFollowedPlayers(true)
           }}
           className={`h-11 border-2 border-black text-xs font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-            mode === "private" ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-[#191B1F] text-[#53FC18]"
+            mode === "private"
+              ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+              : "bg-[#191B1F] text-[#53FC18]"
           }`}
         >
           Private
@@ -409,7 +464,7 @@ export default function ChatPage() {
       </div>
 
       {mode === "community" ? (
-        <div className="flex-1 space-y-4 overflow-y-auto p-4 custom-scrollbar">
+        <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
           {loadingChannels ? (
             <PanelText text="⌛ LOADING CHANNELS..." />
           ) : channels.length === 0 ? (
@@ -418,20 +473,26 @@ export default function ChatPage() {
             <div className="space-y-3">
               {channels.map((channel) => {
                 const active = activeChannel?.id === channel.id
+
                 return (
                   <button
                     key={channel.id}
                     onClick={() => openCommunityChannel(channel)}
                     className={`w-full border-2 border-black p-4 text-left transition-all ${
-                      active 
-                        ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" 
-                        : "bg-[#191B1F] text-white hover:bg-black hover:translate-x-1"
+                      active
+                        ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                        : "bg-[#191B1F] text-white hover:translate-x-1 hover:bg-black"
                     }`}
                   >
                     <h2 className="text-xs font-black uppercase tracking-tight">
                       {channel.name}
-                    </h2> 
-                    <p className={`mt-1 text-[10px] font-black uppercase ${active ? "text-black/60" : "text-[#53FC18]"}`}>
+                    </h2>
+
+                    <p
+                      className={`mt-1 text-[10px] font-black uppercase ${
+                        active ? "text-black/60" : "text-[#53FC18]"
+                      }`}
+                    >
                       {channel.games?.genre || "GAME CHANNEL"} • PUBLIC
                     </p>
                   </button>
@@ -449,10 +510,11 @@ export default function ChatPage() {
               placeholder="PLAYER ID"
               className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase tracking-wider text-white outline-none focus:border-[#53FC18]"
             />
+
             <button
               onClick={() => startPrivateChat()}
               disabled={loadingChat}
-              className="h-12 w-full border-2 border-black bg-white text-xs font-black uppercase tracking-widest text-black disabled:opacity-40 active:bg-zinc-200 transition-colors"
+              className="h-12 w-full border-2 border-black bg-white text-xs font-black uppercase tracking-widest text-black transition-colors active:bg-zinc-200 disabled:opacity-40"
             >
               {loadingChat ? "CONNECTING..." : "START BY ID"}
             </button>
@@ -467,7 +529,7 @@ export default function ChatPage() {
             />
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4 custom-scrollbar">
+          <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto px-4 pb-4">
             {loadingPlayers ? (
               <PanelText text="⌛ LOADING FOLLOWED PLAYERS..." />
             ) : filteredPlayers.length === 0 ? (
@@ -481,7 +543,10 @@ export default function ChatPage() {
                     active={targetUserId === player.id}
                     onChat={() => {
                       setTargetUserId(player.id)
-                      startPrivateChat(player.id, player.display_name || player.username)
+                      startPrivateChat(
+                        player.id,
+                        player.display_name || player.username
+                      )
                     }}
                     onProfile={() => handleVisitProfile(player.id)}
                   />
@@ -493,7 +558,7 @@ export default function ChatPage() {
               <button
                 onClick={() => loadFollowedPlayers(false)}
                 disabled={loadingPlayers}
-                className="w-full border-2 border-black bg-[#191B1F] py-3 text-xs font-black uppercase tracking-widest text-[#53FC18] hover:bg-black disabled:opacity-50 transition-colors"
+                className="w-full border-2 border-black bg-[#191B1F] py-3 text-xs font-black uppercase tracking-widest text-[#53FC18] transition-colors hover:bg-black disabled:opacity-50"
               >
                 {loadingPlayers ? "Loading..." : "Load More"}
               </button>
@@ -504,36 +569,47 @@ export default function ChatPage() {
     </>
   )
 
+if (initialLoading) {
   return (
     <ProtectedRoute>
-      <main className="flex h-screen overflow-hidden bg-[#0B0E11] font-mono text-white pb-16 lg:pb-0">
+      <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
         <Sidebar />
 
-        <section className="flex flex-1 overflow-hidden relative">
-          
-          {/* DESKTOP CONTROLLER VIEW (Hanya dirender saat desktop / lg) */}
+        <section className="flex flex-1 items-center justify-center">
+          <MabarLoading mode="section" />
+        </section>
+      </main>
+    </ProtectedRoute>
+  )
+}
+
+  return (
+    <ProtectedRoute>
+      <main className="flex h-screen overflow-hidden bg-[#0B0E11] pb-16 font-mono text-white lg:pb-0">
+        <Sidebar />
+
+        <section className="relative flex flex-1 overflow-hidden">
           <aside className="hidden w-96 shrink-0 overflow-hidden border-r-4 border-black bg-[#0E1318] lg:flex lg:flex-col">
             {renderChatController()}
           </aside>
 
-          {/* MOBILE CONTROLLER DRAWER (Slide-out dari sisi kiri layar mobile) */}
           <AnimatePresence>
             {isSidebarOpen && (
               <div className="fixed inset-0 z-50 flex lg:hidden">
-                {/* Backdrop overlay gelap click-to-close */}
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className="fixed inset-0 bg-black/80 backdrop-blur-xs"
                   onClick={() => setIsSidebarOpen(false)}
                 />
-                <motion.aside 
+
+                <motion.aside
                   initial={{ translateX: "-100%" }}
                   animate={{ translateX: 0 }}
                   exit={{ translateX: "-100%" }}
                   transition={{ type: "tween", duration: 0.25 }}
-                  className="relative z-10 w-80 max-w-[85vw] h-full overflow-hidden border-r-4 border-black bg-[#0E1318] flex flex-col shadow-[4px_0px_0px_0px_rgba(0,0,0,1)]"
+                  className="relative z-10 flex h-full w-80 max-w-[85vw] flex-col overflow-hidden border-r-4 border-black bg-[#0E1318] shadow-[4px_0px_0px_0px_rgba(0,0,0,1)]"
                 >
                   {renderChatController()}
                 </motion.aside>
@@ -541,18 +617,21 @@ export default function ChatPage() {
             )}
           </AnimatePresence>
 
-          {/* AREA UTAMA CHAT STREAM */}
           <section className="flex flex-1 flex-col bg-[#0B0E11]">
             <div className="flex h-20 items-center justify-between border-b-4 border-black bg-[#0E1318] px-4 md:px-8">
               <div className="min-w-0 flex-1">
-                <h1 className="text-sm md:text-xl font-black uppercase tracking-tight truncate">{title}</h1>
-                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wide text-zinc-500 truncate">{subtitle}</p>
+                <h1 className="truncate text-sm font-black uppercase tracking-tight md:text-xl">
+                  {title}
+                </h1>
+
+                <p className="truncate text-[9px] font-black uppercase tracking-wide text-zinc-500 md:text-[10px]">
+                  {subtitle}
+                </p>
               </div>
-              
-              {/* BUTTON TRIGGER DRAWER (Hanya aktif di layar mobile < lg) */}
+
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="lg:hidden flex items-center justify-center gap-1.5 border-2 border-black bg-[#53FC18] text-black px-3 py-2 text-[10px] font-black uppercase tracking-tight shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                className="flex items-center justify-center gap-1.5 border-2 border-black bg-[#53FC18] px-3 py-2 text-[10px] font-black uppercase tracking-tight text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none lg:hidden"
               >
                 <MessageSquare size={14} className="stroke-[2.5]" />
                 <span>Channels</span>
@@ -560,18 +639,18 @@ export default function ChatPage() {
             </div>
 
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="m-4 md:m-6 border-2 border-black bg-red-950/40 p-4 text-xs font-black uppercase tracking-wider text-red-500 shadow-[3px_3px_0px_0px_rgba(239,68,68,0.2)]"
+                className="m-4 border-2 border-black bg-red-950/40 p-4 text-xs font-black uppercase tracking-wider text-red-500 shadow-[3px_3px_0px_0px_rgba(239,68,68,0.2)] md:m-6"
               >
                 ⚠️ SYSTEM_ERROR: {error}
               </motion.div>
             )}
 
-            <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-8 custom-scrollbar flex flex-col">
+            <div className="custom-scrollbar flex flex-1 flex-col space-y-4 overflow-y-auto p-4 md:p-8">
               {messages.length === 0 ? (
-                <div className="border-2 border-black bg-[#0E1318] p-8 text-center text-xs font-black uppercase tracking-widest text-zinc-600 my-auto">
+                <div className="my-auto border-2 border-black bg-[#0E1318] p-8 text-center text-xs font-black uppercase tracking-widest text-zinc-600">
                   [ NO DATA LOGGED: SESSION MESSAGES EMPTY ]
                 </div>
               ) : (
@@ -589,36 +668,46 @@ export default function ChatPage() {
 
               <AnimatePresence>
                 {typing && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 5, scale: 0.9 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     className="inline-flex self-start border border-black bg-[#53FC18]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#53FC18]"
                   >
-                    <span className="animate-pulse">⚡ TARGET IS TYPING DATA...</span>
+                    <span className="animate-pulse">
+                      ⚡ TARGET IS TYPING DATA...
+                    </span>
                   </motion.div>
                 )}
               </AnimatePresence>
-              
+
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleSendMessage} className="border-t-4 border-black bg-[#0E1318] p-4 md:p-6">
-              <div className="flex items-center gap-2 md:gap-4 border-2 border-black bg-[#191B1F] p-2 pr-2 md:pr-4 transition-all focus-within:border-[#53FC18] focus-within:shadow-[3px_3px_0px_0px_rgba(83,252,24,0.3)]">
+            <form
+              onSubmit={handleSendMessage}
+              className="border-t-4 border-black bg-[#0E1318] p-4 md:p-6"
+            >
+              <div className="flex items-center gap-2 border-2 border-black bg-[#191B1F] p-2 pr-2 transition-all focus-within:border-[#53FC18] focus-within:shadow-[3px_3px_0px_0px_rgba(83,252,24,0.3)] md:gap-4 md:pr-4">
                 <input
                   value={content}
                   onChange={(e) => handleTyping(e.target.value)}
                   disabled={mode === "community" ? !activeChannel : !joinedChatId}
                   placeholder={
                     mode === "community"
-                      ? activeChannel ? "KIRIM PESAN COMMUNITY..." : "PILIH CHANNEL COMMUNITY..."
-                      : joinedChatId ? "KIRIM PESAN PRIVATE..." : "PILIH PLAYER..."
+                      ? activeChannel
+                        ? "KIRIM PESAN COMMUNITY..."
+                        : "PILIH CHANNEL COMMUNITY..."
+                      : joinedChatId
+                        ? "KIRIM PESAN PRIVATE..."
+                        : "PILIH PLAYER..."
                   }
-                  className="h-12 flex-1 bg-transparent px-2 md:px-4 text-xs font-black uppercase tracking-wider text-white outline-none placeholder-zinc-600 disabled:opacity-40"
+                  className="h-12 flex-1 bg-transparent px-2 text-xs font-black uppercase tracking-wider text-white outline-none placeholder-zinc-600 disabled:opacity-40 md:px-4"
                 />
+
                 <button
                   disabled={mode === "community" ? !activeChannel : !joinedChatId}
-                  className="h-10 border-2 border-black bg-[#53FC18] px-4 md:px-6 text-xs font-black uppercase tracking-widest text-black disabled:opacity-40 transition-all active:translate-x-[1px] active:translate-y-[1px]"
+                  className="h-10 border-2 border-black bg-[#53FC18] px-4 text-xs font-black uppercase tracking-widest text-black transition-all active:translate-x-[1px] active:translate-y-[1px] disabled:opacity-40 md:px-6"
                 >
                   Send
                 </button>
@@ -630,8 +719,6 @@ export default function ChatPage() {
     </ProtectedRoute>
   )
 }
-
-// --- SUB-KOMPONEN AUXILIARY ---
 
 function PictureProfile({
   src,
@@ -654,7 +741,7 @@ function PictureProfile({
 
       {avatarBorder && (
         <div
-          className="absolute inset-0 border-2 pointer-events-none"
+          className="pointer-events-none absolute inset-0 border-2"
           style={{
             borderColor: avatarBorder.border_color || "#53FC18",
             boxShadow: avatarBorder.has_glow ? "0 0 8px #53FC18" : "none",
@@ -685,23 +772,49 @@ function PlayerCard({
   onProfile: () => void
 }) {
   return (
-    <div className={`border-2 border-black p-3 flex items-center justify-between transition-all ${active ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" : "bg-[#191B1F] text-white hover:border-[#53FC18]"}`}>
-      <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
+    <div
+      className={`flex items-center justify-between border-2 border-black p-3 transition-all ${
+        active
+          ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+          : "bg-[#191B1F] text-white hover:border-[#53FC18]"
+      }`}
+    >
+      <div className="mr-2 flex min-w-0 flex-1 items-center gap-3">
         <PictureProfile
           src={player.avatar_url}
           alt={player.username}
           avatarBorder={player.equipped_avatar_border}
         />
+
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black uppercase truncate">{player.display_name || player.username}</p>
-          <p className={`text-[9px] font-bold uppercase truncate ${active ? "text-black/60" : "text-zinc-500"}`}>
+          <p className="truncate text-xs font-black uppercase">
+            {player.display_name || player.username}
+          </p>
+
+          <p
+            className={`truncate text-[9px] font-bold uppercase ${
+              active ? "text-black/60" : "text-zinc-500"
+            }`}
+          >
             {player.game_rank || "UNRANKED"}
           </p>
         </div>
       </div>
-      <div className="flex gap-1.5 shrink-0">
-        <button onClick={onChat} className="border border-black bg-black px-2 py-1 text-[10px] font-black uppercase text-[#53FC18] active:scale-95 transition-transform">Chat</button>
-        <button onClick={onProfile} className="border border-black bg-zinc-800 px-2 py-1 text-[10px] font-black uppercase text-white active:scale-95 transition-transform">Profile</button>
+
+      <div className="flex shrink-0 gap-1.5">
+        <button
+          onClick={onChat}
+          className="border border-black bg-black px-2 py-1 text-[10px] font-black uppercase text-[#53FC18] transition-transform active:scale-95"
+        >
+          Chat
+        </button>
+
+        <button
+          onClick={onProfile}
+          className="border border-black bg-zinc-800 px-2 py-1 text-[10px] font-black uppercase text-white transition-transform active:scale-95"
+        >
+          Profile
+        </button>
       </div>
     </div>
   )
@@ -717,13 +830,15 @@ function ChatBubble({
   currentUser: any
 }) {
   const profile = message.profiles
-  
+
   const username = mine
     ? currentUser?.display_name || currentUser?.username || "YOU"
     : profile?.display_name || profile?.username || "PLAYER"
 
   const avatarUrl = mine ? currentUser?.avatar_url : profile?.avatar_url
-  const borderAsset = mine ? currentUser?.equipped_avatar_border : profile?.equipped_avatar_border
+  const borderAsset = mine
+    ? currentUser?.equipped_avatar_border
+    : profile?.equipped_avatar_border
 
   const text = message.content || message.message || ""
 
@@ -736,31 +851,41 @@ function ChatBubble({
     : ""
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 15, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ type: "spring", stiffness: 350, damping: 26 }}
-      className={`flex w-full gap-2 md:gap-3 ${mine ? "justify-end items-end" : "justify-start items-start"}`}
+      className={`flex w-full gap-2 md:gap-3 ${
+        mine ? "items-end justify-end" : "items-start justify-start"
+      }`}
     >
       {!mine && (
         <PictureProfile src={avatarUrl} alt={username} avatarBorder={borderAsset} />
       )}
 
-      <div className={`max-w-[75%] md:max-w-md border-2 border-black p-3 md:p-4 select-text transition-all duration-150 ${
-        mine 
-          ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-[1px]" 
-          : "bg-[#191B1F] text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[5px_5px_0px_0px_#53FC18] hover:-translate-y-[1px]"
-      }`}>
-        <div className="flex items-center justify-between gap-4 md:gap-8 mb-1">
-          <p className="text-[9px] font-black uppercase opacity-60 truncate max-w-[120px]">{username}</p>
+      <div
+        className={`max-w-[75%] select-text border-2 border-black p-3 transition-all duration-150 md:max-w-md md:p-4 ${
+          mine
+            ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]"
+            : "bg-[#191B1F] text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_#53FC18]"
+        }`}
+      >
+        <div className="mb-1 flex items-center justify-between gap-4 md:gap-8">
+          <p className="max-w-[120px] truncate text-[9px] font-black uppercase opacity-60">
+            {username}
+          </p>
+
           {timeString && (
-            <p className="text-[8px] font-bold uppercase opacity-40 tracking-wider shrink-0">
+            <p className="shrink-0 text-[8px] font-bold uppercase tracking-wider opacity-40">
               {timeString}
             </p>
           )}
         </div>
-        <p className="text-xs font-bold uppercase break-words leading-relaxed whitespace-pre-wrap">{text}</p>
+
+        <p className="whitespace-pre-wrap break-words text-xs font-bold uppercase leading-relaxed">
+          {text}
+        </p>
       </div>
 
       {mine && (
