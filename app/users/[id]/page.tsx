@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/Sidebar"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
 import { getPublicProfile } from "@/services/profile.service"
 import { api } from "@/lib/axios"
+import MabarLoading from "@/components/ui/MabarLoading"
 
 interface ShopItem {
   id?: string
@@ -176,21 +177,13 @@ export default function UserProfilePage() {
     loadProfile()
   }, [identifier])
 
-  if (loading) {
-    return (
-      <ProtectedRoute>
-        <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
-          <Sidebar />
-
-          <section className="flex flex-1 items-center justify-center">
-            <div className="border-2 border-black bg-[#0E1318] p-8 text-xs font-black uppercase tracking-widest text-[#53FC18] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              ⏳ LOADING PLAYER PROFILE...
-            </div>
-          </section>
-        </main>
-      </ProtectedRoute>
-    )
-  }
+ if (loading) {
+  return (
+    <ProtectedRoute>
+      <MabarLoading text="LOADING PROFILE" />
+    </ProtectedRoute>
+  )
+}
 
   if (!profile) {
     return (

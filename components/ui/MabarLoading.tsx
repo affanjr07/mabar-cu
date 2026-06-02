@@ -1,36 +1,63 @@
 "use client"
 
+import { motion } from "framer-motion"
+
+interface MabarLoadingProps {
+  text?: string
+}
+
 export default function MabarLoading({
   text = "LOADING MABAR.CU",
-}: {
-  text?: string
-}) {
+}: MabarLoadingProps) {
+  // Array untuk merender 3 block indikator ala lego/grid modular
+  const blocks = [0, 1, 2]
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0B0E11] px-4 font-mono text-white">
-      <div className="relative flex flex-col items-center">
-        <div className="relative flex h-28 w-28 items-center justify-center sm:h-36 sm:w-36">
-          <div className="absolute inset-0 animate-spin border-4 border-[#53FC18] border-t-transparent shadow-[0_0_35px_rgba(83,252,24,0.35)]" />
-
-          <div className="absolute inset-3 animate-pulse border-2 border-black bg-[#0E1318] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]" />
-
-          <div className="relative z-10 text-6xl font-black leading-none tracking-tighter text-[#53FC18] drop-shadow-[0_0_14px_rgba(83,252,24,0.8)] sm:text-7xl">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0B0E11] px-6 font-mono text-white select-none">
+      <div className="w-full max-w-xs sm:max-w-sm flex flex-col items-center">
+        
+        {/* LOGO BOX MODULAR (MINIMALIS KICK / LEGO STYLE) */}
+        <div className="relative mb-6 flex h-16 w-16 items-center justify-center border-4 border-black bg-[#53FC18] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:h-20 sm:w-20 sm:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+          <span className="text-4xl font-black tracking-tighter text-black sm:text-5xl">
             M
-          </div>
-
-          <div className="absolute -bottom-2 h-2 w-20 animate-pulse bg-[#53FC18] shadow-[0_0_20px_rgba(83,252,24,0.9)] sm:w-24" />
+          </span>
+          {/* Ornamen stud/tonjolan lego minimalis di pojok kanan bawah */}
+          <div className="absolute bottom-1 right-1 h-2 w-2 bg-black" />
         </div>
 
-        <h2 className="mt-8 animate-pulse text-center text-sm font-black uppercase tracking-[0.35em] text-[#53FC18] sm:text-base">
-          {text}
-        </h2>
-
-        <p className="mt-3 text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">
-          Preparing squad system...
-        </p>
-
-        <div className="mt-6 h-3 w-64 overflow-hidden border-2 border-black bg-[#191B1F] sm:w-80">
-          <div className="h-full w-1/2 animate-[mabarLoading_1.4s_ease-in-out_infinite] bg-[#53FC18]" />
+        {/* STATUS TEXT SECTION */}
+        <div className="w-full text-center border-2 border-black bg-[#0E1318] p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#53FC18] sm:text-xs">
+            {text}
+          </h2>
+          <p className="mt-1 text-[9px] font-black uppercase tracking-wider text-zinc-500">
+            // SQUAD_SYSTEM_PREPPING...
+          </p>
         </div>
+
+        {/* LEGO BLOCK PROGRESS TRACKER (GAYA KICK STRIP) */}
+        <div className="mt-4 flex w-full gap-2">
+          {blocks.map((index) => (
+            <div 
+              key={index} 
+              className="h-3 flex-1 border-2 border-black bg-[#191B1F] relative overflow-hidden"
+            >
+              <motion.div
+                className="h-full bg-[#53FC18]"
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1.2,
+                  ease: "easeInOut",
+                  delay: index * 0.15, // Efek sekuensial bergantian ala brick
+                  repeatType: "reverse"
+                }}
+              />
+            </div>
+          ))}
+        </div>
+
       </div>
     </div>
   )
