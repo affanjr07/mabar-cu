@@ -1,898 +1,453 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
+import { useEffect, useMemo, useState } from "react"
 import Sidebar from "@/components/layout/Sidebar"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
 import MabarLoading from "@/components/ui/MabarLoading"
-import { socket } from "@/lib/socket"
 import {
-  createPrivateChat,
-  getChatMessages,
-  sendChatMessage,
-} from "@/services/chat.service"
-import {
-  getCommunityChannels,
-  getCommunityMessages,
-  sendCommunityMessage,
-} from "@/services/community.service"
-import { getFollowedPlayers } from "@/services/dashboard.service"
+  getMyWallet,
+  topUpDemo,
+  getWalletTransactions,
+} from "@/services/economy.service"
+import { api } from "@/lib/axios"
 import { useAuthStore } from "@/store/auth.store"
-import { MessageSquare, X } from "lucide-react"
 
-interface Message {
-  id?: string
-  chat_id?: string
-  channel_id?: string
-  sender_id?: string
-  content?: string
-  message?: string
-  is_flagged?: boolean
-  created_at?: string
-  profiles?: {
-    id?: string
-    username?: string
-    display_name?: string
-    avatar_url?: string
-    equipped_avatar_border?: any
-  }
-}
-
-interface Player {
-  id: string
-  username: string
-  display_name?: string
-  avatar_url?: string
-  online_status?: boolean
-  last_online_text?: string
-  game_rank?: string
-  preferred_role?: string
-  equipped_avatar_border?: any
-}
-
-interface CommunityChannel {
-  id: string
-  game_id: string
-  name: string
-  slug: string
-  description?: string
-  is_active: boolean
-  games?: {
-    id: string
-    name: string
-    genre: string
-  }
-}
-
-type ChatMode = "private" | "community"
-
-export default function ChatPage() {
-  const router = useRouter()
+export default function WalletPage() {
   const user = useAuthStore((state) => state.user)
 
-  const [mode, setMode] = useState<ChatMode>("community")
-  const [targetUserId, setTargetUserId] = useState("")
-  const [playerSearch, setPlayerSearch] = useState("")
-  const [players, setPlayers] = useState<Player[]>([])
-  const [playersOffset, setPlayersOffset] = useState(0)
-  const [hasMorePlayers, setHasMorePlayers] = useState(true)
+  const [wallet, setWallet] = useState<any>(null)
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [topupAmount, setTopupAmount] = useState(1000)
+  const [targetEmail, setTargetEmail] = useState("")
+  const [giftAmount, setGiftAmount] = useState(100)
+  const [giftMessage, setGiftMessage] = useState("")
+  const [message, setMessage] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
-  const [channels, setChannels] = useState<CommunityChannel[]>([])
-  const [activeChannel, setActiveChannel] = useState<CommunityChannel | null>(
-    null
-  )
-
-  const [joinedChatId, setJoinedChatId] = useState("")
-  const [activePlayerName, setActivePlayerName] = useState("")
-
-  const [messages, setMessages] = useState<Message[]>([])
-  const [content, setContent] = useState("")
-  const [typing, setTyping] = useState(false)
-  const [error, setError] = useState("")
-  const [initialLoading, setInitialLoading] = useState(true)
-  const [loadingPlayers, setLoadingPlayers] = useState(false)
-  const [loadingChat, setLoadingChat] = useState(false)
-  const [loadingChannels, setLoadingChannels] = useState(false)
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-  const playerLimit = 15
-
-  const currentChatIdRef = useRef("")
-  const currentChannelIdRef = useRef("")
-  const messagesEndRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    currentChatIdRef.current = joinedChatId
-  }, [joinedChatId])
-
-  useEffect(() => {
-    currentChannelIdRef.current = activeChannel?.id || ""
-  }, [activeChannel])
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, typing])
-
-  const playIncomingMessageSound = () => {
-    try {
-      const AudioContext =
-        window.AudioContext || (window as any).webkitAudioContext
-
-      if (!AudioContext) return
-
-      const ctx = new AudioContext()
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-
-      osc.type = "sine"
-      osc.frequency.setValueAtTime(830.61, ctx.currentTime)
-
-      gain.gain.setValueAtTime(0.15, ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
-
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-
-      osc.start()
-      osc.stop(ctx.currentTime + 0.12)
-    } catch (e) {
-      console.error("Gagal memutar instrumen notifikasi pesan", e)
-    }
-  }
-
-  async function loadFollowedPlayers(reset = false) {
-    try {
-      setLoadingPlayers(true)
-
-      const nextOffset = reset ? 0 : playersOffset
-      const data = await getFollowedPlayers(playerLimit, nextOffset)
-
-      if (reset) {
-        setPlayers(data || [])
-        setPlayersOffset(playerLimit)
-      } else {
-        setPlayers((prev) => [...prev, ...(data || [])])
-        setPlayersOffset((prev) => prev + playerLimit)
-      }
-
-      setHasMorePlayers((data || []).length === playerLimit)
-    } catch (error: any) {
-      setError(
-        error.response?.data?.message || "GAGAL MENGAMBIL FOLLOWED PLAYER."
+  const stats = useMemo(() => {
+    const spent = transactions
+      .filter((tx) =>
+        ["buy_item", "shop_purchase", "pro_booking_payment", "gift"].includes(tx.type)
       )
-    } finally {
-      setLoadingPlayers(false)
-    }
-  }
+      .reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
 
-  async function loadCommunityChannels() {
-    try {
-      setLoadingChannels(true)
-
-      const data = await getCommunityChannels()
-      setChannels(data || [])
-
-      if (data?.length > 0 && !activeChannel && mode === "community") {
-        await openCommunityChannel(data[0])
-      }
-    } catch (error: any) {
-      setError(
-        error.response?.data?.message || "GAGAL MENGAMBIL COMMUNITY CHANNEL."
+    const received = transactions
+      .filter((tx) =>
+        ["gift_received", "pro_booking_income", "topup_demo"].includes(tx.type)
       )
+      .reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
+
+    const giftSent = transactions
+      .filter((tx) => tx.type === "gift")
+      .reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
+
+    const bookingSpent = transactions
+      .filter((tx) => tx.type === "pro_booking_payment")
+      .reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
+
+    return { spent, received, giftSent, bookingSpent }
+  }, [transactions])
+
+  async function loadData() {
+    try {
+      setLoading(true)
+
+      const [walletData, transactionData] = await Promise.all([
+        getMyWallet(),
+        getWalletTransactions(),
+      ])
+
+      setWallet(walletData?.wallet || walletData)
+      setTransactions(transactionData?.transactions || transactionData || [])
+    } catch (error: any) {
+      setMessage(error.response?.data?.message || "Gagal mengambil wallet.")
     } finally {
-      setLoadingChannels(false)
+      setLoading(false)
     }
   }
 
-  async function openCommunityChannel(channel: CommunityChannel) {
+  async function handleTopup() {
     try {
-      setMode("community")
-      setError("")
-      setActiveChannel(channel)
-      setJoinedChatId("")
-      setActivePlayerName("")
-      setTargetUserId("")
-      setContent("")
-      setIsSidebarOpen(false)
+      setActionLoading(true)
 
-      const data = await getCommunityMessages(channel.id)
-      setMessages(data || [])
+      const amount = Number(topupAmount)
 
-      if (!socket.connected) socket.connect()
-      socket.emit("join_community_channel", channel.id)
-    } catch (error: any) {
-      setError(error.response?.data?.message || "GAGAL MASUK COMMUNITY CHANNEL.")
-    }
-  }
-
-  async function startPrivateChat(id?: string, name?: string) {
-    const selectedTargetId = id || targetUserId
-
-    if (!selectedTargetId.trim()) {
-      setError("PILIH PLAYER TERLEBIH DAHULU.")
-      return
-    }
-
-    try {
-      setMode("private")
-      setError("")
-      setLoadingChat(true)
-      setActiveChannel(null)
-      setContent("")
-      setIsSidebarOpen(false)
-
-      const privateChat = await createPrivateChat(selectedTargetId)
-      const chatId = privateChat.chat.id
-
-      setJoinedChatId(chatId)
-      setActivePlayerName(name || selectedTargetId)
-
-      const data = await getChatMessages(chatId)
-      setMessages(data || [])
-
-      if (!socket.connected) socket.connect()
-      socket.emit("join_chat", chatId)
-    } catch (error: any) {
-      setError(
-        error.response?.data?.message ||
-          "GAGAL MEMULAI CHAT. PASTIKAN KAMU SUDAH FOLLOW PLAYER INI."
-      )
-    } finally {
-      setLoadingChat(false)
-    }
-  }
-
-  async function handleSendMessage(e: React.FormEvent) {
-    e.preventDefault()
-
-    if (!content.trim()) return
-
-    try {
-      setError("")
-
-      if (mode === "community") {
-        if (!activeChannel) {
-          setError("PILIH COMMUNITY CHANNEL TERLEBIH DAHULU.")
-          return
-        }
-
-        await sendCommunityMessage(activeChannel.id, content)
-      }
-
-      if (mode === "private") {
-        if (!joinedChatId) return
-
-        await sendChatMessage(joinedChatId, {
-          content,
-          message_type: "text",
-        })
-      }
-
-      setContent("")
-      setTyping(false)
-    } catch (error: any) {
-      if (error.response?.data?.code === "USER_MUTED") {
-        const data = error.response.data
-        const until = data.muted_until
-          ? new Date(data.muted_until).toLocaleString("id-ID")
-          : "Permanen"
-
-        setError(`KAMU SEDANG DIMUTE. ALASAN: ${data.reason}. SAMPAI: ${until}`)
+      if (!amount || amount <= 0) {
+        setMessage("Jumlah topup tidak valid.")
         return
       }
 
-      setError(error.response?.data?.message || "GAGAL MENGIRIM PESAN.")
+      await topUpDemo(amount)
+      setMessage("⚡ TOPUP DEMO BERHASIL.")
+      await loadData()
+    } catch (error: any) {
+      setMessage(error.response?.data?.message || "Gagal topup.")
+    } finally {
+      setActionLoading(false)
     }
   }
 
-  function handleTyping(value: string) {
-    setContent(value)
+  function preCheckGift() {
+    const email = targetEmail.trim().toLowerCase()
+    const amount = Number(giftAmount)
 
-    if (mode !== "private" || !joinedChatId || !user) return
+    if (!email) {
+      setMessage("Email target wajib diisi.")
+      return
+    }
 
-    socket.emit("typing_start", { chatId: joinedChatId, userId: user.id })
+    if (!email.includes("@")) {
+      setMessage("Format email target tidak valid.")
+      return
+    }
 
-    setTimeout(() => {
-      socket.emit("typing_stop", { chatId: joinedChatId, userId: user.id })
-    }, 800)
+    if (!amount || amount <= 0) {
+      setMessage("Jumlah point tidak valid.")
+      return
+    }
+
+    if (amount > Number(wallet?.balance || 0)) {
+      setMessage("Point tidak mencukupi untuk melakukan gift.")
+      return
+    }
+
+    if (user?.email && email === user.email.toLowerCase()) {
+      setMessage("Tidak bisa gift point ke akun sendiri.")
+      return
+    }
+
+    setShowConfirmModal(true)
   }
 
-  function handleVisitProfile(playerId: string) {
-    router.push(`/users/${playerId}`)
+  async function handleGift() {
+    try {
+      setActionLoading(true)
+      setShowConfirmModal(false)
+
+      const payload = {
+        target_email: targetEmail.trim().toLowerCase(),
+        amount: Number(giftAmount),
+        message: giftMessage.trim() || "Gift point dari wallet",
+      }
+
+      await api.post("/economy/wallet/gift", payload)
+
+      setMessage(`⚡ POINT BERHASIL DIGIFT KE ${targetEmail.toUpperCase()}.`)
+      setTargetEmail("")
+      setGiftAmount(100)
+      setGiftMessage("")
+      await loadData()
+    } catch (error: any) {
+      console.log("GIFT ERROR DETAIL:", error.response?.data || error.message)
+      setMessage(
+        error.response?.data?.message ||
+          "Gagal gift point. Cek email target dan saldo."
+      )
+    } finally {
+      setActionLoading(false)
+    }
   }
 
-  const filteredPlayers = players.filter((player) => {
-    const keyword = playerSearch.toLowerCase()
-    const name = `${player.username || ""} ${
-      player.display_name || ""
-    }`.toLowerCase()
-
-    return name.includes(keyword)
-  })
+  function formatDate(date?: string) {
+    if (!date) return "-"
+    return new Date(date).toLocaleString("id-ID", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    })
+  }
 
   useEffect(() => {
-    async function initChatPage() {
-      try {
-        setInitialLoading(true)
-
-        await Promise.all([loadFollowedPlayers(true), loadCommunityChannels()])
-
-        if (!socket.connected) socket.connect()
-
-        if (user?.id) {
-          socket.emit("user_online", user.id)
-        }
-      } finally {
-        setInitialLoading(false)
-      }
-    }
-
-    initChatPage()
-  }, [user?.id])
-
-  useEffect(() => {
-    function onPrivateMessage(message: Message) {
-      if (message.sender_id && user?.id && message.sender_id !== user.id) {
-        playIncomingMessageSound()
-      }
-
-      setMessages((prev) => {
-        if (prev.some((item) => item.id === message.id)) return prev
-
-        if (
-          message.chat_id &&
-          currentChatIdRef.current &&
-          message.chat_id !== currentChatIdRef.current
-        ) {
-          return prev
-        }
-
-        return [...prev, message]
-      })
-    }
-
-    function onCommunityMessage(message: Message) {
-      if (message.sender_id && user?.id && message.sender_id !== user.id) {
-        playIncomingMessageSound()
-      }
-
-      setMessages((prev) => {
-        if (prev.some((item) => item.id === message.id)) return prev
-
-        if (
-          message.channel_id &&
-          currentChannelIdRef.current &&
-          message.channel_id !== currentChannelIdRef.current
-        ) {
-          return prev
-        }
-
-        return [...prev, message]
-      })
-    }
-
-    function onTyping(data: any) {
-      if (data.userId !== user?.id) {
-        setTyping(data.typing)
-      }
-    }
-
-    socket.on("message_received", onPrivateMessage)
-    socket.on("community_message_received", onCommunityMessage)
-    socket.on("user_typing", onTyping)
-
-    return () => {
-      socket.off("message_received", onPrivateMessage)
-      socket.off("community_message_received", onCommunityMessage)
-      socket.off("user_typing", onTyping)
-    }
-  }, [user?.id])
-
-  const title =
-    mode === "community"
-      ? activeChannel
-        ? `COMMUNITY // ${activeChannel.name.toUpperCase()}`
-        : "COMMUNITY CHAT"
-      : activePlayerName
-        ? `PRIVATE // CHAT WITH ${activePlayerName.toUpperCase()}`
-        : "PRIVATE CHAT"
-
-  const subtitle =
-    mode === "community"
-      ? activeChannel
-        ? `CHANNEL_ID: ${activeChannel.id}`
-        : "PILIH CHANNEL GAME UNTUK CHAT PUBLIK"
-      : joinedChatId
-        ? `ROOM_ID: ${joinedChatId}`
-        : "PILIH PLAYER TARGET UNTUK PRIVATE CHAT"
-
-  const renderChatController = () => (
-    <>
-      <div className="flex items-center justify-between border-b-4 border-black bg-[#0B0E11] p-6">
-        <div>
-          <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-            // CHAT_CONTROLLER
-          </div>
-
-          <h1 className="text-3xl font-black uppercase tracking-tight text-[#53FC18]">
-            Messages
-          </h1>
-        </div>
-
-        <button
-          onClick={() => setIsSidebarOpen(false)}
-          className="border-2 border-black bg-zinc-900 p-2 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] lg:hidden"
-        >
-          <X size={16} className="stroke-[2.5]" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 p-4">
-        <button
-          onClick={() => {
-            setMode("community")
-            setJoinedChatId("")
-            setActivePlayerName("")
-            setTargetUserId("")
-            setMessages([])
-            if (activeChannel) openCommunityChannel(activeChannel)
-          }}
-          className={`h-11 border-2 border-black text-xs font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-            mode === "community"
-              ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-              : "bg-[#191B1F] text-[#53FC18]"
-          }`}
-        >
-          Community
-        </button>
-
-        <button
-          onClick={() => {
-            setMode("private")
-            setMessages([])
-            setActiveChannel(null)
-            loadFollowedPlayers(true)
-          }}
-          className={`h-11 border-2 border-black text-xs font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-            mode === "private"
-              ? "bg-[#53FC18] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-              : "bg-[#191B1F] text-[#53FC18]"
-          }`}
-        >
-          Private
-        </button>
-      </div>
-
-      {mode === "community" ? (
-        <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
-          {loadingChannels ? (
-            <PanelText text="⌛ LOADING CHANNELS..." />
-          ) : channels.length === 0 ? (
-            <PanelText text="❌ BELUM ADA CHANNEL." />
-          ) : (
-            <div className="space-y-3">
-              {channels.map((channel) => {
-                const active = activeChannel?.id === channel.id
-
-                return (
-                  <button
-                    key={channel.id}
-                    onClick={() => openCommunityChannel(channel)}
-                    className={`w-full border-2 border-black p-4 text-left transition-all ${
-                      active
-                        ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
-                        : "bg-[#191B1F] text-white hover:translate-x-1 hover:bg-black"
-                    }`}
-                  >
-                    <h2 className="text-xs font-black uppercase tracking-tight">
-                      {channel.name}
-                    </h2>
-
-                    <p
-                      className={`mt-1 text-[10px] font-black uppercase ${
-                        active ? "text-black/60" : "text-[#53FC18]"
-                      }`}
-                    >
-                      {channel.games?.genre || "GAME CHANNEL"} • PUBLIC
-                    </p>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="space-y-3 p-4">
-            <input
-              value={targetUserId}
-              onChange={(e) => setTargetUserId(e.target.value)}
-              placeholder="PLAYER ID"
-              className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase tracking-wider text-white outline-none focus:border-[#53FC18]"
-            />
-
-            <button
-              onClick={() => startPrivateChat()}
-              disabled={loadingChat}
-              className="h-12 w-full border-2 border-black bg-white text-xs font-black uppercase tracking-widest text-black transition-colors active:bg-zinc-200 disabled:opacity-40"
-            >
-              {loadingChat ? "CONNECTING..." : "START BY ID"}
-            </button>
-          </div>
-
-          <div className="px-4 pb-4">
-            <input
-              value={playerSearch}
-              onChange={(e) => setPlayerSearch(e.target.value)}
-              placeholder="CARI FOLLOWED PLAYER..."
-              className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase tracking-wider text-white outline-none focus:border-[#53FC18]"
-            />
-          </div>
-
-          <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-            {loadingPlayers ? (
-              <PanelText text="⌛ LOADING FOLLOWED PLAYERS..." />
-            ) : filteredPlayers.length === 0 ? (
-              <PanelText text="❌ BELUM ADA PLAYER YANG KAMU FOLLOW." />
-            ) : (
-              <div className="space-y-3">
-                {filteredPlayers.map((player) => (
-                  <PlayerCard
-                    key={player.id}
-                    player={player}
-                    active={targetUserId === player.id}
-                    onChat={() => {
-                      setTargetUserId(player.id)
-                      startPrivateChat(
-                        player.id,
-                        player.display_name || player.username
-                      )
-                    }}
-                    onProfile={() => handleVisitProfile(player.id)}
-                  />
-                ))}
-              </div>
-            )}
-
-            {hasMorePlayers && !playerSearch && (
-              <button
-                onClick={() => loadFollowedPlayers(false)}
-                disabled={loadingPlayers}
-                className="w-full border-2 border-black bg-[#191B1F] py-3 text-xs font-black uppercase tracking-widest text-[#53FC18] transition-colors hover:bg-black disabled:opacity-50"
-              >
-                {loadingPlayers ? "Loading..." : "Load More"}
-              </button>
-            )}
-          </div>
-        </>
-      )}
-    </>
-  )
-
-  if (initialLoading) {
-    return (
-      <ProtectedRoute>
-        <main className="flex h-screen overflow-hidden bg-[#0B0E11] pb-16 font-mono text-white lg:pb-0">
-          <Sidebar />
-
-          <section className="flex flex-1 items-center justify-center">
-            <MabarLoading mode="section" />
-          </section>
-        </main>
-      </ProtectedRoute>
-    )
-  }
+    loadData()
+  }, [])
 
   return (
     <ProtectedRoute>
-      <main className="flex h-screen overflow-hidden bg-[#0B0E11] pb-16 font-mono text-white lg:pb-0">
+      <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white selection:bg-[#53FC18] selection:text-black">
         <Sidebar />
 
-        <section className="relative flex flex-1 overflow-hidden">
-          <aside className="hidden w-96 shrink-0 overflow-hidden border-r-4 border-black bg-[#0E1318] lg:flex lg:flex-col">
-            {renderChatController()}
-          </aside>
+        {loading ? (
+          <section className="flex flex-1 items-center justify-center">
+            <MabarLoading mode="section" />
+          </section>
+        ) : (
+          <section className="custom-scrollbar relative flex-1 overflow-y-auto p-6 lg:p-10">
+            {showConfirmModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+                <div className="w-full max-w-md border-4 border-black bg-[#0E1318] p-6 shadow-[8px_8px_0px_0px_#53FC18]">
+                  <div className="mb-4 inline-block border border-red-500 bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-red-400">
+                    // CONFIRMATION_REQUIRED
+                  </div>
 
-          <AnimatePresence>
-            {isSidebarOpen && (
-              <div className="fixed inset-0 z-50 flex lg:hidden">
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black/80 backdrop-blur-xs"
-                  onClick={() => setIsSidebarOpen(false)}
-                />
+                  <h3 className="mb-2 text-xl font-black uppercase text-white">
+                    Transfer Point?
+                  </h3>
 
-                <motion.aside
-                  initial={{ translateX: "-100%" }}
-                  animate={{ translateX: 0 }}
-                  exit={{ translateX: "-100%" }}
-                  transition={{ type: "tween", duration: 0.25 }}
-                  className="relative z-10 flex h-full w-80 max-w-[85vw] flex-col overflow-hidden border-r-4 border-black bg-[#0E1318] shadow-[4px_0px_0px_0px_rgba(0,0,0,1)]"
-                >
-                  {renderChatController()}
-                </motion.aside>
-              </div>
-            )}
-          </AnimatePresence>
+                  <p className="mb-6 text-xs uppercase leading-relaxed text-zinc-400">
+                    Kamu akan mengirim{" "}
+                    <span className="font-black text-[#53FC18]">
+                      {giftAmount} Points
+                    </span>{" "}
+                    ke{" "}
+                    <span className="font-black text-white">{targetEmail}</span>.
+                  </p>
 
-          <section className="flex flex-1 flex-col bg-[#0B0E11]">
-            <div className="flex h-20 items-center justify-between border-b-4 border-black bg-[#0E1318] px-4 md:px-8">
-              <div className="min-w-0 flex-1">
-                <h1 className="truncate text-sm font-black uppercase tracking-tight md:text-xl">
-                  {title}
-                </h1>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => setShowConfirmModal(false)}
+                      className="border-2 border-black bg-zinc-800 py-3 text-xs font-black uppercase text-white hover:bg-zinc-700 disabled:opacity-50"
+                    >
+                      Batal
+                    </button>
 
-                <p className="truncate text-[9px] font-black uppercase tracking-wide text-zinc-500 md:text-[10px]">
-                  {subtitle}
-                </p>
-              </div>
-
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="flex items-center justify-center gap-1.5 border-2 border-black bg-[#53FC18] px-3 py-2 text-[10px] font-black uppercase tracking-tight text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none lg:hidden"
-              >
-                <MessageSquare size={14} className="stroke-[2.5]" />
-                <span>Channels</span>
-              </button>
-            </div>
-
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="m-4 border-2 border-black bg-red-950/40 p-4 text-xs font-black uppercase tracking-wider text-red-500 shadow-[3px_3px_0px_0px_rgba(239,68,68,0.2)] md:m-6"
-              >
-                ⚠️ SYSTEM_ERROR: {error}
-              </motion.div>
-            )}
-
-            <div className="custom-scrollbar flex flex-1 flex-col space-y-4 overflow-y-auto p-4 md:p-8">
-              {messages.length === 0 ? (
-                <div className="my-auto border-2 border-black bg-[#0E1318] p-8 text-center text-xs font-black uppercase tracking-widest text-zinc-600">
-                  [ NO DATA LOGGED: SESSION MESSAGES EMPTY ]
+                    <button
+                      disabled={actionLoading}
+                      onClick={handleGift}
+                      className="border-2 border-black bg-[#53FC18] py-3 text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50"
+                    >
+                      {actionLoading ? "Mengirim..." : "Kirim Sekarang"}
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <AnimatePresence initial={false}>
-                  {messages.map((message, index) => (
-                    <ChatBubble
-                      key={message.id || index}
-                      message={message}
-                      mine={message.sender_id === user?.id}
-                      currentUser={user}
-                    />
-                  ))}
-                </AnimatePresence>
-              )}
+              </div>
+            )}
 
-              <AnimatePresence>
-                {typing && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="inline-flex self-start border border-black bg-[#53FC18]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#53FC18]"
-                  >
-                    <span className="animate-pulse">
-                      ⚡ TARGET IS TYPING DATA...
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            <div className="border-2 border-black bg-[#0E1318] p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+              <div className="mb-3 inline-flex border border-black bg-[#53FC18]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#53FC18]">
+                // WALLET SYSTEM
+              </div>
 
-              <div ref={messagesEndRef} />
+              <h1 className="text-5xl font-black uppercase tracking-tight">
+                Wallet
+              </h1>
+
+              <p className="mt-4 text-xs font-bold uppercase text-zinc-500">
+                Kelola point, gift point, dan riwayat transaksi akun.
+              </p>
             </div>
 
-            <form
-              onSubmit={handleSendMessage}
-              className="border-t-4 border-black bg-[#0E1318] p-4 md:p-6"
-            >
-              <div className="flex items-center gap-2 border-2 border-black bg-[#191B1F] p-2 pr-2 transition-all focus-within:border-[#53FC18] focus-within:shadow-[3px_3px_0px_0px_rgba(83,252,24,0.3)] md:gap-4 md:pr-4">
-                <input
-                  value={content}
-                  onChange={(e) => handleTyping(e.target.value)}
-                  disabled={mode === "community" ? !activeChannel : !joinedChatId}
-                  placeholder={
-                    mode === "community"
-                      ? activeChannel
-                        ? "KIRIM PESAN COMMUNITY..."
-                        : "PILIH CHANNEL COMMUNITY..."
-                      : joinedChatId
-                        ? "KIRIM PESAN PRIVATE..."
-                        : "PILIH PLAYER..."
-                  }
-                  className="h-12 flex-1 bg-transparent px-2 text-xs font-black uppercase tracking-wider text-white outline-none placeholder-zinc-600 disabled:opacity-40 md:px-4"
-                />
-
+            {message && (
+              <div className="mt-8 flex items-center justify-between border-2 border-black bg-[#142A14] p-4 text-xs font-black uppercase text-[#53FC18]">
+                <span>{message}</span>
                 <button
-                  disabled={mode === "community" ? !activeChannel : !joinedChatId}
-                  className="h-10 border-2 border-black bg-[#53FC18] px-4 text-xs font-black uppercase tracking-widest text-black transition-all active:translate-x-[1px] active:translate-y-[1px] disabled:opacity-40 md:px-6"
+                  onClick={() => setMessage("")}
+                  className="ml-2 text-[10px] text-zinc-500 hover:text-white"
                 >
-                  Send
+                  [X]
                 </button>
               </div>
-            </form>
+            )}
+
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+              <WalletCard label="Point Balance" value={wallet?.balance || 0} />
+              <WalletCard label="Total Topup" value={wallet?.total_topup || 0} />
+              <WalletCard label="Total Spent" value={stats.spent} danger />
+              <WalletCard label="Point Received" value={stats.received} />
+            </div>
+
+            <div className="mt-10 grid gap-6 xl:grid-cols-2">
+              {user?.role === "admin" && (
+                <div className="flex flex-col justify-between border-2 border-black bg-[#0E1318] p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]">
+                  <div>
+                    <h2 className="text-xl font-black uppercase text-[#53FC18]">
+                      Admin Demo Topup
+                    </h2>
+
+                    <p className="mt-2 text-xs font-bold uppercase text-zinc-500">
+                      Fitur demo. Hanya admin yang bisa melakukan injeksi point.
+                    </p>
+                  </div>
+
+                  <div className="mt-6 flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase text-zinc-400">
+                      Amount to Inject
+                    </span>
+
+                    <div className="flex gap-3">
+                      <input
+                        type="number"
+                        value={topupAmount}
+                        onChange={(e) => setTopupAmount(Number(e.target.value))}
+                        className="h-12 flex-1 border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase outline-none transition-colors focus:border-[#53FC18]"
+                      />
+
+                      <button
+                        disabled={actionLoading}
+                        onClick={handleTopup}
+                        className="border-2 border-black bg-[#53FC18] px-6 text-xs font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50"
+                      >
+                        Topup
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="border-2 border-black bg-[#0E1318] p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]">
+                <h2 className="text-xl font-black uppercase text-white">
+                  Gift Points
+                </h2>
+
+                <p className="mt-2 text-xs font-bold uppercase text-zinc-500">
+                  Kirim point ke player lain menggunakan email akun.
+                </p>
+
+                <div className="mt-5 space-y-4">
+                  <InputLabel label="Target Email">
+                    <input
+                      value={targetEmail}
+                      onChange={(e) => setTargetEmail(e.target.value)}
+                      placeholder="user@example.com"
+                      className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black outline-none transition-colors focus:border-[#53FC18]"
+                    />
+                  </InputLabel>
+
+                  <InputLabel label="Amount Points">
+                    <input
+                      type="number"
+                      value={giftAmount}
+                      onChange={(e) => setGiftAmount(Number(e.target.value))}
+                      placeholder="0"
+                      className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase outline-none transition-colors focus:border-[#53FC18]"
+                    />
+                  </InputLabel>
+
+                  <InputLabel label="Optional Message">
+                    <input
+                      value={giftMessage}
+                      onChange={(e) => setGiftMessage(e.target.value)}
+                      placeholder="HAVE FUN!"
+                      className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase outline-none transition-colors focus:border-[#53FC18]"
+                    />
+                  </InputLabel>
+
+                  <button
+                    disabled={actionLoading}
+                    onClick={preCheckGift}
+                    className="mt-2 w-full border-2 border-black bg-[#53FC18] py-3 text-xs font-black uppercase text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50"
+                  >
+                    Send Gift Package
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-10 grid gap-4 sm:grid-cols-3">
+              <WalletCard label="Gift Sent" value={stats.giftSent} />
+              <WalletCard label="Booking Spent" value={stats.bookingSpent} danger />
+              <WalletCard label="Total Transactions" value={transactions.length} />
+            </div>
+
+            <div className="mt-10 border-2 border-black bg-[#0E1318] p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]">
+              <h2 className="mb-6 text-2xl font-black uppercase tracking-tight">
+                Transaction History
+              </h2>
+
+              {transactions.length === 0 ? (
+                <div className="border-2 border-dashed border-zinc-700 bg-[#191B1F] p-6 text-center text-xs font-black uppercase text-zinc-500">
+                  Belum ada records transaksi pada sistem ini.
+                </div>
+              ) : (
+                <div className="custom-scrollbar max-h-[500px] space-y-3 overflow-y-auto pr-2">
+                  {transactions.map((tx) => {
+                    const isExpense = [
+                      "gift",
+                      "buy_item",
+                      "shop_purchase",
+                      "pro_booking_payment",
+                    ].includes(tx.type)
+
+                    return (
+                      <div
+                        key={tx.id}
+                        className="flex flex-col justify-between gap-3 border-2 border-black bg-[#191B1F] p-4 transition-colors hover:bg-[#202329] md:flex-row md:items-center"
+                      >
+                        <div>
+                          <span
+                            className={`border px-2 py-0.5 text-[9px] font-black uppercase ${
+                              isExpense
+                                ? "border-red-500 bg-red-500/10 text-red-400"
+                                : "border-[#53FC18] bg-[#53FC18]/10 text-[#53FC18]"
+                            }`}
+                          >
+                            {tx.type}
+                          </span>
+
+                          <p className="mt-2 text-[11px] font-bold uppercase text-zinc-300">
+                            {tx.message || "Wallet transaction record"}
+                          </p>
+
+                          <p className="mt-1 text-[9px] font-black uppercase text-zinc-600">
+                            {formatDate(tx.created_at)}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-zinc-800 pt-2 text-left md:flex-col md:items-end md:border-none md:pt-0 md:text-right">
+                          <p
+                            className={`text-xl font-black ${
+                              isExpense ? "text-red-400" : "text-[#53FC18]"
+                            }`}
+                          >
+                            {isExpense ? "-" : "+"}
+                            {tx.amount}
+                          </p>
+
+                          <span className="border border-zinc-800 bg-black/40 px-1.5 py-0.5 text-[9px] font-black uppercase text-zinc-500">
+                            {tx.status || "SUCCESS"}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </section>
-        </section>
+        )}
       </main>
     </ProtectedRoute>
   )
 }
 
-function PictureProfile({
-  src,
-  alt,
-  avatarBorder,
+function InputLabel({
+  label,
+  children,
 }: {
-  src?: string
-  alt: string
-  avatarBorder?: any
+  label: string
+  children: React.ReactNode
 }) {
-  const initial = alt ? alt.charAt(0).toUpperCase() : "?"
-
   return (
-    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 font-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-      {src ? (
-        <img src={src} alt={alt} className="h-full w-full object-cover" />
-      ) : (
-        <span className="text-sm tracking-tighter">{initial}</span>
-      )}
-
-      {avatarBorder && (
-        <div
-          className="pointer-events-none absolute inset-0 border-2"
-          style={{
-            borderColor: avatarBorder.border_color || "#53FC18",
-            boxShadow: avatarBorder.has_glow ? "0 0 8px #53FC18" : "none",
-          }}
-        />
-      )}
+    <div className="space-y-1">
+      <span className="text-[10px] font-black uppercase text-zinc-400">
+        {label}
+      </span>
+      {children}
     </div>
   )
 }
 
-function PanelText({ text }: { text: string }) {
-  return (
-    <div className="border-2 border-black bg-[#191B1F] p-4 text-center text-xs font-black uppercase text-zinc-500">
-      {text}
-    </div>
-  )
-}
-
-function PlayerCard({
-  player,
-  active,
-  onChat,
-  onProfile,
+function WalletCard({
+  label,
+  value,
+  danger,
 }: {
-  player: Player
-  active: boolean
-  onChat: () => void
-  onProfile: () => void
+  label: string
+  value: number
+  danger?: boolean
 }) {
   return (
     <div
-      className={`flex items-center justify-between border-2 border-black p-3 transition-all ${
-        active
-          ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
-          : "bg-[#191B1F] text-white hover:border-[#53FC18]"
+      className={`border-2 border-black bg-[#0E1318] p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-transform hover:translate-y-[-2px] ${
+        danger ? "border-red-500/50 text-red-400" : "border-zinc-800 text-[#53FC18]"
       }`}
     >
-      <div className="mr-2 flex min-w-0 flex-1 items-center gap-3">
-        <PictureProfile
-          src={player.avatar_url}
-          alt={player.username}
-          avatarBorder={player.equipped_avatar_border}
-        />
+      <h2 className="text-4xl font-black tracking-tight">{value}</h2>
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-black uppercase">
-            {player.display_name || player.username}
-          </p>
-
-          <p
-            className={`truncate text-[9px] font-bold uppercase ${
-              active ? "text-black/60" : "text-zinc-500"
-            }`}
-          >
-            {player.game_rank || "UNRANKED"}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex shrink-0 gap-1.5">
-        <button
-          onClick={onChat}
-          className="border border-black bg-black px-2 py-1 text-[10px] font-black uppercase text-[#53FC18] transition-transform active:scale-95"
-        >
-          Chat
-        </button>
-
-        <button
-          onClick={onProfile}
-          className="border border-black bg-zinc-800 px-2 py-1 text-[10px] font-black uppercase text-white transition-transform active:scale-95"
-        >
-          Profile
-        </button>
-      </div>
+      <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+        {label}
+      </p>
     </div>
-  )
-}
-
-function ChatBubble({
-  message,
-  mine,
-  currentUser,
-}: {
-  message: Message
-  mine: boolean
-  currentUser: any
-}) {
-  const profile = message.profiles
-
-  const username = mine
-    ? currentUser?.display_name || currentUser?.username || "YOU"
-    : profile?.display_name || profile?.username || "PLAYER"
-
-  const avatarUrl = mine ? currentUser?.avatar_url : profile?.avatar_url
-  const borderAsset = mine
-    ? currentUser?.equipped_avatar_border
-    : profile?.equipped_avatar_border
-
-  const text = message.content || message.message || ""
-
-  const timeString = message.created_at
-    ? new Date(message.created_at).toLocaleTimeString("id-ID", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      })
-    : ""
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 15, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ type: "spring", stiffness: 350, damping: 26 }}
-      className={`flex w-full gap-2 md:gap-3 ${
-        mine ? "items-end justify-end" : "items-start justify-start"
-      }`}
-    >
-      {!mine && (
-        <PictureProfile src={avatarUrl} alt={username} avatarBorder={borderAsset} />
-      )}
-
-      <div
-        className={`max-w-[75%] select-text border-2 border-black p-3 transition-all duration-150 md:max-w-md md:p-4 ${
-          mine
-            ? "bg-[#53FC18] text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]"
-            : "bg-[#191B1F] text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-[1px] hover:shadow-[5px_5px_0px_0px_#53FC18]"
-        }`}
-      >
-        <div className="mb-1 flex items-center justify-between gap-4 md:gap-8">
-          <p className="max-w-[120px] truncate text-[9px] font-black uppercase opacity-60">
-            {username}
-          </p>
-
-          {timeString && (
-            <p className="shrink-0 text-[8px] font-bold uppercase tracking-wider opacity-40">
-              {timeString}
-            </p>
-          )}
-        </div>
-
-        <p className="whitespace-pre-wrap break-words text-xs font-bold uppercase leading-relaxed">
-          {text}
-        </p>
-      </div>
-
-      {mine && (
-        <PictureProfile src={avatarUrl} alt={username} avatarBorder={borderAsset} />
-      )}
-    </motion.div>
   )
 }

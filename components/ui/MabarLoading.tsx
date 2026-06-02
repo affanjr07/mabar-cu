@@ -11,43 +11,54 @@ export default function MabarLoading({
         mode === "full" ? "min-h-screen" : "min-h-[420px] w-full"
       }`}
     >
+      {/* WRAPPER UTAMA (RESPONSIVE & COMPACT) */}
       <div className="relative flex h-32 w-32 items-center justify-center sm:h-40 sm:w-40">
-        <div className="absolute h-24 w-24 rounded-full border-2 border-dashed border-[#53FC18]/40 animate-[spin_4s_linear_infinite] sm:h-32 sm:w-32" />
+        
+        {/* 1. LINGKARAN TRACKING LASER (KICK NEON ORBIT) */}
+        {/* Mengitari logo gamer dengan putaran halus dan bayangan pendaran neon */}
+        <div className="absolute h-24 w-24 rounded-full border-2 border-dashed border-[#53FC18]/30 animate-[spin_5s_linear_infinite] sm:h-30 sm:w-30" />
+        <div className="absolute h-26 w-26 rounded-full border-t-2 border-[#53FC18] shadow-[0_0_12px_rgba(83,252,24,0.4)] animate-[spin_1.2s_ease-in-out_infinite] sm:h-32 sm:w-32" />
 
-        <div className="absolute h-28 w-28 rounded-full border-t-2 border-b-2 border-l-2 border-[#53FC18] shadow-[0_0_15px_rgba(83,252,24,0.5)] animate-[spin_1.5s_cubic-bezier(0.53,0.21,0.29,0.67)_infinite] sm:h-36 sm:w-36" />
-
-        <div className="relative flex h-16 w-20 items-center justify-center border-4 border-black bg-[#53FC18] shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] animate-[bounce_2s_infinite] [animation-timing-function:cubic-bezier(0.28,0.84,0.42,1)] sm:h-20 sm:w-24">
+        {/* ========================================================= */}
+        {/* 2. CORE: LEGO D-PAD MATRIX (MEMBENTUK SILUET HURUF "M") */}
+        {/* ========================================================= */}
+        {/* Struktur utama stik/lego yang memantul dengan entakan konstan */}
+        <div className="relative flex h-16 w-16 items-center justify-center border-4 border-black bg-[#191B1F] shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] animate-[bounce_2s_infinite] [animation-timing-function:cubic-bezier(0.28,0.84,0.42,1)] sm:h-20 sm:w-20">
+          
+          {/* Efek Kilatan Scanline Internal dari global.css */}
           <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute top-0 left-0 h-full w-1/3 bg-white/40 -skew-x-12 mix-blend-overlay animate-[mabarLoading_1.4s_ease-in-out_infinite]" />
-            <div className="absolute top-0 left-0 h-full w-1/4 bg-black/10 -skew-x-12 animate-[mabarLoading_1.4s_ease-in-out_infinite] [animation-delay:0.4s]" />
+            <div className="absolute top-0 left-0 h-full w-1/3 bg-white/10 -skew-x-12 animate-[mabarLoading_1.4s_ease-in-out_infinite]" />
+            <div className="absolute top-0 left-0 h-full w-1/4 bg-[#53FC18]/10 -skew-x-12 animate-[mabarLoading_1.4s_ease-in-out_infinite] [animation-delay:0.4s]" />
           </div>
 
-          <div className="relative flex h-full w-full items-center justify-between px-2.5 z-10">
-            <div className="relative h-5 w-5 flex items-center justify-center sm:h-6 sm:w-6">
-              <div className="absolute h-full w-1.5 bg-black" />
-              <div className="absolute h-1.5 w-full bg-black" />
-            </div>
-
-            <div className="absolute bottom-0 left-1/2 h-4 w-6 -translate-x-1/2 border-t-4 border-x-4 border-black bg-[#0B0E11]" />
-
-            <div className="absolute top-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-              <div className="h-1 w-2 -skew-x-12 bg-black/60" />
-              <div className="h-1 w-2 -skew-x-12 bg-black/60" />
-            </div>
-
-            <div className="relative grid grid-cols-2 gap-1 rotate-45">
-              <div className="h-1.5 w-1.5 rounded-full bg-black" />
-              <div className="h-1.5 w-1.5 rounded-full bg-black" />
-              <div className="h-1.5 w-1.5 rounded-full bg-black" />
-              <div className="h-1.5 w-1.5 rounded-full bg-black" />
-            </div>
+          {/* SUSUNAN TOMBOL ARAH (GAMER D-PAD) YANG MEMBENTUK HURUF M */}
+          <div className="relative h-10 w-10 sm:h-12 sm:w-12">
+            {/* Sayap Kiri M (Sayap D-Pad Kiri) */}
+            <div className="absolute top-3 left-0 h-7 w-3 border-2 border-black bg-[#53FC18] shadow-[1px_1px_0px_rgba(0,0,0,1)]" />
+            
+            {/* Puncak Tengah M (Tombol D-Pad Atas) */}
+            <div className="absolute top-0 left-1/2 h-6 w-3 -translate-x-1/2 border-2 border-black bg-[#53FC18]" />
+            
+            {/* Sayap Kanan M (Sayap D-Pad Kanan) */}
+            <div className="absolute top-3 right-0 h-7 w-3 border-2 border-black bg-[#53FC18] shadow-[1px_1px_0px_rgba(0,0,0,1)]" />
+            
+            {/* Inti Pusat Konektor (Background Gelap Pengunci Pola M) */}
+            <div className="absolute top-3 left-1/2 h-3 w-3 -translate-x-1/2 border-2 border-black bg-[#0B0E11]" />
+            
+            {/* Titik Indikator LED Mikro di tengah atas */}
+            <div className="absolute top-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-black/60 animate-pulse" />
           </div>
 
-          <div className="absolute -bottom-2 left-3 h-2 w-2 border-2 border-black bg-[#53FC18]" />
-          <div className="absolute -bottom-2 right-3 h-2 w-2 border-2 border-black bg-[#53FC18]" />
+          {/* ORNAMEN TONJOLAN (STUD) LEGO MINIMALIS DI SUDUT BAWAH */}
+          <div className="absolute -bottom-2 left-2 h-1.5 w-1.5 border border-black bg-[#53FC18]" />
+          <div className="absolute -bottom-2 right-2 h-1.5 w-1.5 border border-black bg-[#53FC18]" />
+
         </div>
+        {/* ========================================================= */}
 
-        <div className="absolute h-16 w-20 bg-[#53FC18]/10 blur-xl animate-pulse -z-10" />
+        {/* 3. BACKGROUND AMBIENT GLOW */}
+        <div className="absolute h-14 w-14 bg-[#53FC18]/5 blur-xl animate-pulse -z-10" />
+        
       </div>
     </div>
   )
