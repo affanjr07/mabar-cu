@@ -174,7 +174,7 @@ export default function DashboardPage() {
   if (isInitialLoading) {
     return (
       <ProtectedRoute>
-        <MabarLoading text="LOADING DASHBOARD" />
+        <MabarLoading/>
       </ProtectedRoute>
     )
   }

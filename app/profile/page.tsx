@@ -345,7 +345,7 @@ export default function MyProfilePage() {
   if (loading) {
   return (
     <ProtectedRoute>
-      <MabarLoading text="LOADING PROFILE" />
+      <MabarLoading/>
     </ProtectedRoute>
   )
 }

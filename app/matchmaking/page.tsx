@@ -389,7 +389,7 @@ export default function MatchmakingPage() {
   if (loading) {
     return (
       <ProtectedRoute>
-        <MabarLoading text="SYNCING MATCHMAKING" />
+        <MabarLoading/>
       </ProtectedRoute>
     )
   }
