@@ -117,13 +117,6 @@ export default function GamerCard({
             <MapPin size={8} className="sm:size-[10px]" />
             <span className="truncate max-w-[40px] sm:max-w-[70px]">{region || "IDN"}</span>
           </div>
-
-          {winStreak > 0 && (
-            <div className="border border-red-500/30 bg-red-950/20 px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[9px] sm:text-[10px] font-black uppercase text-red-500 flex items-center gap-0.5 shadow-[1px_1px_0px_0px_rgba(239,68,68,0.2)]">
-              <Flame size={9} className="sm:size-[11px] fill-red-500 text-red-500 animate-pulse shrink-0" />
-              <span className="truncate max-w-[55px] sm:max-w-none">{winStreak} WS</span>
-            </div>
-          )}
         </div>
       </div>
 
