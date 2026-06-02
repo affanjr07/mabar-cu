@@ -118,30 +118,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* STATS GRID */}
-          <div className="mt-16 md:mt-24 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-            {[
-              ["25K+", "Gamers Connected", <Users size={18} className="text-zinc-500" />],
-              ["10K+", "Active Rooms", <Swords size={18} className="text-zinc-500" />],
-              ["500+", "Tournaments", <Trophy size={18} className="text-zinc-500" />],
-              ["99%", "Match Rate", <Activity size={18} className="text-zinc-500" />],
-            ].map(([number, label, icon]) => (
-              <div
-                key={label as string}
-                className="border-2 border-black bg-[#0E1318] p-3 md:p-5 text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] md:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group hover:border-[#53FC18] transition-colors"
-              >
-                <div className="flex justify-between items-start">
-                  <h2 className="text-2xl font-black tracking-tight text-[#53FC18] sm:text-3xl md:text-4xl">
-                    {number as string}
-                  </h2>
-                  <div className="scale-90 md:scale-100">{icon as React.ReactNode}</div>
-                </div>
-                <p className="mt-1.5 text-[9px] md:text-[10px] font-black uppercase tracking-wider text-zinc-500 group-hover:text-zinc-400 truncate">
-                  {label as string}
-                </p>
-              </div>
-            ))}
-          </div>
+
         </div>
       </section>
 
@@ -170,7 +147,6 @@ export default function HomePage() {
               <span className="text-[8px] md:text-[9px] font-black text-[#53FC18] bg-[#53FC18]/10 px-2 py-0.5">{game.genre}</span>
               <h4 className="text-sm md:text-base font-black uppercase mt-2 group-hover:text-[#53FC18] transition-colors">{game.name}</h4>
               <div className="flex items-center gap-1.5 mt-3 text-[10px] md:text-[11px] font-bold text-zinc-500">
-                <span className="h-1.5 w-1.5 bg-red-500 rounded-full animate-ping" />
                 {game.activeRooms}
               </div>
             </div>
