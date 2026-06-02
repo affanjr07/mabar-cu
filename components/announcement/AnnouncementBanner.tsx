@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 import { X, Megaphone, Radio, BellRing } from "lucide-react"
 import { getActiveAnnouncements } from "@/services/announcement.service"
 
@@ -15,6 +16,7 @@ interface Announcement {
 }
 
 const STORAGE_KEY = "mabar_seen_announcements"
+const HIDDEN_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"]
 
 function getSeenIds(): string[] {
   if (typeof window === "undefined") return []
@@ -29,7 +31,6 @@ function getSeenIds(): string[] {
 function saveSeenId(id: string) {
   const seenIds = getSeenIds()
   const nextIds = Array.from(new Set([...seenIds, id]))
-
   localStorage.setItem(STORAGE_KEY, JSON.stringify(nextIds))
 }
 
@@ -42,7 +43,15 @@ function isAnnouncementActive(item: Announcement) {
   return true
 }
 
+function shouldHideOnPath(pathname: string) {
+  return HIDDEN_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  )
+}
+
 export default function AnnouncementBanner() {
+  const pathname = usePathname()
+
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [hiddenIds, setHiddenIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -50,9 +59,12 @@ export default function AnnouncementBanner() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const previousVisibleIds = useRef<string[]>([])
   const hasLoadedOnce = useRef(false)
+  const userHasInteracted = useRef(false)
+
+  const isHiddenPage = shouldHideOnPath(pathname)
 
   async function loadAnnouncements() {
-    if (loading) return
+    if (loading || isHiddenPage) return
 
     try {
       setLoading(true)
@@ -84,11 +96,34 @@ export default function AnnouncementBanner() {
   }
 
   useEffect(() => {
+    function markInteraction() {
+      userHasInteracted.current = true
+    }
+
+    window.addEventListener("click", markInteraction)
+    window.addEventListener("keydown", markInteraction)
+    window.addEventListener("touchstart", markInteraction)
+
+    return () => {
+      window.removeEventListener("click", markInteraction)
+      window.removeEventListener("keydown", markInteraction)
+      window.removeEventListener("touchstart", markInteraction)
+    }
+  }, [])
+
+  useEffect(() => {
     audioRef.current = new Audio("/sounds/broadcast-notif.mp3")
-    audioRef.current.volume = 0.5
+    audioRef.current.volume = 0.55
 
     const seenIds = getSeenIds()
     setHiddenIds(seenIds)
+  }, [])
+
+  useEffect(() => {
+    if (isHiddenPage) {
+      setAnnouncements([])
+      return
+    }
 
     loadAnnouncements()
 
@@ -97,7 +132,7 @@ export default function AnnouncementBanner() {
     }, 7000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [pathname, isHiddenPage])
 
   const visibleAnnouncements = announcements.filter((item) => {
     if (!item?.id) return false
@@ -106,18 +141,23 @@ export default function AnnouncementBanner() {
   })
 
   useEffect(() => {
+    if (isHiddenPage) return
+
     const currentIds = visibleAnnouncements.map((item) => item.id)
     const hasNew = currentIds.some(
       (id) => !previousVisibleIds.current.includes(id)
     )
 
-    if (hasLoadedOnce.current && hasNew && previousVisibleIds.current.length > 0) {
-      playNotificationSound()
+    if (hasLoadedOnce.current && hasNew && currentIds.length > 0) {
+      if (userHasInteracted.current || previousVisibleIds.current.length > 0) {
+        playNotificationSound()
+      }
     }
 
     previousVisibleIds.current = currentIds
-  }, [visibleAnnouncements])
+  }, [visibleAnnouncements, isHiddenPage])
 
+  if (isHiddenPage) return null
   if (visibleAnnouncements.length === 0) return null
 
   return (
