@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, Suspense, memo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import AuthLayout from "@/components/layout/AuthLayout"
@@ -31,11 +31,10 @@ function LoginContent() {
         timeStyle: "short",
       })
     } catch {
-      return date // Fallback jika format string tanggal sudah di-format sebelumnya
+      return date
     }
   }
 
-  // Efek untuk menangkap data banned otomatis dari URL (kiriman Axios interceptor)
   useEffect(() => {
     const errCode = searchParams.get("error")
     const reason = searchParams.get("reason")
@@ -52,6 +51,7 @@ function LoginContent() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return // Mencegah double submit jika user spam tombol di HP
 
     try {
       setLoading(true)
@@ -69,7 +69,7 @@ function LoginContent() {
 
       setTimeout(() => {
         router.push("/dashboard")
-      }, 1200)
+      }, 1000)
     } catch (err: any) {
       const data = err.response?.data
 
@@ -83,8 +83,7 @@ function LoginContent() {
       }
 
       setError(
-        data?.message ||
-          "LOGIN GAGAL! PERIKSA KEMBALI EMAIL & PASSWORD"
+        data?.message || "LOGIN GAGAL! PERIKSA KEMBALI EMAIL & PASSWORD"
       )
     } finally {
       setLoading(false)
@@ -92,37 +91,38 @@ function LoginContent() {
   }
 
   return (
-    <div className="w-full max-w-md border-2 border-black bg-[#0E1318] p-8 font-mono text-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-      <div className="mb-8">
-        <div className="mb-4 inline-flex border border-black bg-[#53FC18]/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-[#53FC18]">
+    // MODIFIKASI: w-full max-w-md dengan padding responsif p-5 di mobile, p-8 di desktop agar tidak sesak
+    <div className="w-full max-w-md border-2 border-black bg-[#0E1318] p-5 sm:p-8 font-mono text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+      <div className="mb-6 sm:mb-8">
+        <div className="mb-3 inline-flex border border-black bg-[#53FC18]/10 px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#53FC18]">
           WELCOME BACK
         </div>
 
-        <h1 className="text-4xl font-black uppercase tracking-tight">
+        <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight">
           Login Account
         </h1>
 
-        <p className="mt-3 text-xs font-bold uppercase leading-relaxed text-zinc-500">
+        <p className="mt-2 text-[11px] sm:text-xs font-bold uppercase leading-relaxed text-zinc-500">
           Login dan mulai push rank bersama squadmu.
         </p>
       </div>
 
-      {/* NOTIFIKASI ERROR STANDAR */}
+      {/* NOTIFIKASI ERROR */}
       {error && !isBanned && (
-        <div className="mb-6 border-2 border-black bg-[#2A1414] p-4 text-xs font-black uppercase tracking-wider text-red-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="mb-5 border-2 border-black bg-[#2A1414] p-3.5 text-[11px] sm:text-xs font-black uppercase tracking-wider text-red-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in fade-in slide-in-from-top-2 duration-150">
           {error}
         </div>
       )}
 
-      {/* NOTIFIKASI AKUN BANNED CUSTOM EMBED UI */}
+      {/* NOTIFIKASI BANNED */}
       {isBanned && (
-        <div className="mb-6 border-4 border-red-600 bg-[#160B0B] p-4 font-mono shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200">
-          <div className="flex items-center gap-2 border-b-2 border-red-600/30 pb-2 text-red-500">
-            <AlertTriangle size={18} className="stroke-[2.5]" />
-            <span className="text-sm font-black uppercase tracking-tight">ACCESS TERMINATED</span>
+        <div className="mb-5 border-2 sm:border-4 border-red-600 bg-[#160B0B] p-3 sm:p-4 font-mono shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-150">
+          <div className="flex items-center gap-2 border-b border-red-600/30 pb-2 text-red-500">
+            <AlertTriangle size={16} className="stroke-[2.5] shrink-0" />
+            <span className="text-xs sm:text-sm font-black uppercase tracking-tight">ACCESS TERMINATED</span>
           </div>
           
-          <div className="mt-3 space-y-1.5 text-[11px] font-bold uppercase tracking-wide">
+          <div className="mt-2.5 space-y-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide">
             <p className="text-zinc-400">
               STATUS: <span className="text-red-500 font-black">BANNED</span>
             </p>
@@ -138,18 +138,18 @@ function LoginContent() {
 
       {/* NOTIFIKASI BERHASIL */}
       {successMessage && (
-        <div className="mb-6 border-2 border-black bg-[#142A14] p-4 text-xs font-black uppercase tracking-wider text-[#53FC18] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center animate-in fade-in duration-150">
+        <div className="mb-5 border-2 border-black bg-[#142A14] p-3.5 text-[11px] sm:text-xs font-black uppercase tracking-wider text-[#53FC18] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center animate-in fade-in duration-100">
           ⚡ {successMessage}
         </div>
       )}
 
-      <form onSubmit={handleLogin} className="space-y-5">
+      <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
         <input
           type="email"
           placeholder="EMAIL ADDRESS"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-14 w-full border-2 border-black bg-[#191B1F] px-5 text-xs font-bold uppercase tracking-wide text-white outline-none focus:border-[#53FC18] transition-colors"
+          className="h-12 sm:h-14 w-full border-2 border-black bg-[#191B1F] px-4 sm:px-5 text-[11px] sm:text-xs font-bold uppercase tracking-wide text-white outline-none focus:border-[#53FC18] transition-colors"
           required
         />
 
@@ -159,28 +159,28 @@ function LoginContent() {
             placeholder="PASSWORD"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-14 w-full border-2 border-black bg-[#191B1F] pl-5 pr-14 text-xs font-bold text-white outline-none focus:border-[#53FC18] transition-colors"
+            className="h-12 sm:h-14 w-full border-2 border-black bg-[#191B1F] pl-4 sm:pl-5 pr-12 sm:pr-14 text-[11px] sm:text-xs font-bold text-white outline-none focus:border-[#53FC18] transition-colors"
             required
           />
 
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center p-1 text-zinc-500 transition-colors hover:text-[#53FC18]"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center text-zinc-500 transition-colors hover:text-[#53FC18] active:scale-90"
           >
-            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
 
         <button
           disabled={loading}
-          className="mt-2 flex h-14 w-full items-center justify-center border-2 border-black bg-[#53FC18] text-xs font-black uppercase tracking-widest text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] disabled:opacity-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+          className="mt-1 flex h-12 sm:h-14 w-full items-center justify-center border-2 border-black bg-[#53FC18] text-[11px] sm:text-xs font-black uppercase tracking-widest text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b] disabled:opacity-50 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
         >
           {loading ? "LOADING..." : "LOGIN"}
         </button>
       </form>
 
-      <p className="mt-8 text-center text-xs font-bold uppercase tracking-wide text-zinc-500">
+      <p className="mt-6 sm:mt-8 text-center text-[11px] sm:text-xs font-bold uppercase tracking-wide text-zinc-500">
         Belum punya akun?{" "}
         <Link
           href="/register"
@@ -193,16 +193,18 @@ function LoginContent() {
   )
 }
 
-// Membungkus konten ke dalam Suspense agar aman dari error Next.js saat build / menggunakan useSearchParams
+// OPTIMASI: Bungkus komponen utama dengan memo agar tidak terjadi re-render eksternal yang tidak diperlukan dari AuthLayout
+const MemoizedLoginContent = memo(LoginContent)
+
 export default function LoginPage() {
   return (
     <AuthLayout>
       <Suspense fallback={
-        <div className="border-2 border-black bg-[#0E1318] p-8 font-mono text-[#53FC18] text-xs font-black uppercase tracking-widest animate-pulse">
+        <div className="border-2 border-black bg-[#0E1318] p-6 sm:p-8 font-mono text-[#53FC18] text-[11px] sm:text-xs font-black uppercase tracking-widest animate-pulse">
           INITIALIZING SECURE TERMINAL...
         </div>
       }>
-        <LoginContent />
+        <MemoizedLoginContent />
       </Suspense>
     </AuthLayout>
   )
