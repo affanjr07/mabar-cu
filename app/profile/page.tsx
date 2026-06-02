@@ -47,6 +47,9 @@ interface Profile {
   total_ratings?: number
 }
 
+const BANNER_WIDTH = 1600
+const BANNER_HEIGHT = 500
+
 export default function MyProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [inventory, setInventory] = useState<InventoryItem[]>([])
@@ -55,6 +58,13 @@ export default function MyProfilePage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
   const [message, setMessage] = useState("")
+
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [bannerPreviewUrl, setBannerPreviewUrl] = useState("")
+  const [showBannerPreview, setShowBannerPreview] = useState(false)
+  const [bannerZoom, setBannerZoom] = useState(1)
+  const [bannerX, setBannerX] = useState(0)
+  const [bannerY, setBannerY] = useState(0)
 
   const [form, setForm] = useState({
     username: "",
@@ -165,15 +175,106 @@ export default function MyProfilePage() {
     }
   }
 
-  async function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleBannerSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (bannerPreviewUrl) URL.revokeObjectURL(bannerPreviewUrl)
+
+    const previewUrl = URL.createObjectURL(file)
+
+    setBannerFile(file)
+    setBannerPreviewUrl(previewUrl)
+    setBannerZoom(1)
+    setBannerX(0)
+    setBannerY(0)
+    setShowBannerPreview(true)
+
+    e.target.value = ""
+  }
+
+  function closeBannerPreview() {
+    if (bannerPreviewUrl) URL.revokeObjectURL(bannerPreviewUrl)
+
+    setBannerFile(null)
+    setBannerPreviewUrl("")
+    setShowBannerPreview(false)
+    setBannerZoom(1)
+    setBannerX(0)
+    setBannerY(0)
+  }
+
+  async function createAdjustedBannerFile() {
+    if (!bannerFile || !bannerPreviewUrl) throw new Error("File banner kosong")
+
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = reject
+      img.src = bannerPreviewUrl
+    })
+
+    const canvas = document.createElement("canvas")
+    canvas.width = BANNER_WIDTH
+    canvas.height = BANNER_HEIGHT
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) throw new Error("Canvas tidak tersedia")
+
+    ctx.fillStyle = "#0B0E11"
+    ctx.fillRect(0, 0, BANNER_WIDTH, BANNER_HEIGHT)
+
+    const imageRatio = image.width / image.height
+    const bannerRatio = BANNER_WIDTH / BANNER_HEIGHT
+
+    let drawWidth = BANNER_WIDTH
+    let drawHeight = BANNER_HEIGHT
+
+    if (imageRatio > bannerRatio) {
+      drawHeight = BANNER_HEIGHT
+      drawWidth = drawHeight * imageRatio
+    } else {
+      drawWidth = BANNER_WIDTH
+      drawHeight = drawWidth / imageRatio
+    }
+
+    drawWidth *= bannerZoom
+    drawHeight *= bannerZoom
+
+    const maxMoveX = Math.max((drawWidth - BANNER_WIDTH) / 2, 0)
+    const maxMoveY = Math.max((drawHeight - BANNER_HEIGHT) / 2, 0)
+
+    const offsetX = (bannerX / 100) * maxMoveX
+    const offsetY = (bannerY / 100) * maxMoveY
+
+    const drawX = (BANNER_WIDTH - drawWidth) / 2 + offsetX
+    const drawY = (BANNER_HEIGHT - drawHeight) / 2 + offsetY
+
+    ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (result) => {
+          if (!result) reject(new Error("Gagal membuat banner"))
+          else resolve(result)
+        },
+        "image/webp",
+        0.92
+      )
+    })
+
+    return new File([blob], `banner-${Date.now()}.webp`, {
+      type: "image/webp",
+    })
+  }
+
+  async function handleConfirmBannerUpload() {
     try {
       setUploadingBanner(true)
       setMessage("")
 
-      const res = await uploadBanner(file)
+      const adjustedFile = await createAdjustedBannerFile()
+      const res = await uploadBanner(adjustedFile)
       const updatedProfile = res.profile || res
 
       setProfile((prev) => ({
@@ -182,11 +283,11 @@ export default function MyProfilePage() {
       }))
 
       setMessage("Banner berhasil diupload")
+      closeBannerPreview()
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Upload banner gagal")
     } finally {
       setUploadingBanner(false)
-      e.target.value = ""
     }
   }
 
@@ -210,6 +311,10 @@ export default function MyProfilePage() {
 
   useEffect(() => {
     loadProfile()
+
+    return () => {
+      if (bannerPreviewUrl) URL.revokeObjectURL(bannerPreviewUrl)
+    }
   }, [])
 
   if (loading) {
@@ -232,6 +337,103 @@ export default function MyProfilePage() {
       <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
         <Sidebar />
 
+        {showBannerPreview && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-5xl border-4 border-black bg-[#0E1318] p-6 shadow-[8px_8px_0px_0px_rgba(83,252,24,1)]">
+              <div className="flex flex-col justify-between gap-4 border-b-2 border-[#191B1F] pb-4 md:flex-row md:items-center">
+                <div>
+                  <h2 className="text-2xl font-black uppercase tracking-tight text-white">
+                    Preview Banner
+                  </h2>
+                  <p className="mt-1 text-xs font-bold uppercase text-zinc-500">
+                    Atur posisi dan zoom sebelum banner diupload.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeBannerPreview}
+                  className="border-2 border-black bg-red-600 px-5 py-3 text-xs font-black uppercase text-white"
+                >
+                  Batal
+                </button>
+              </div>
+
+              <div className="mt-6 overflow-hidden border-4 border-black bg-[#191B1F]">
+                <div className="relative aspect-[16/5] w-full overflow-hidden">
+                  {bannerPreviewUrl && (
+                    <img
+                      src={bannerPreviewUrl}
+                      alt="Banner Preview"
+                      className="absolute left-1/2 top-1/2 min-h-full min-w-full object-cover"
+                      style={{
+                        transform: `translate(calc(-50% + ${bannerX}px), calc(-50% + ${bannerY}px)) scale(${bannerZoom})`,
+                      }}
+                    />
+                  )}
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
+                  <div className="absolute left-5 top-5 border-2 border-black bg-[#53FC18] px-3 py-1 text-[10px] font-black uppercase text-black">
+                    1600 x 500 Preview
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <ControlRange
+                  label="Zoom"
+                  min={1}
+                  max={2.5}
+                  step={0.05}
+                  value={bannerZoom}
+                  onChange={setBannerZoom}
+                />
+
+                <ControlRange
+                  label="Geser Kiri / Kanan"
+                  min={-120}
+                  max={120}
+                  step={1}
+                  value={bannerX}
+                  onChange={setBannerX}
+                />
+
+                <ControlRange
+                  label="Geser Atas / Bawah"
+                  min={-120}
+                  max={120}
+                  step={1}
+                  value={bannerY}
+                  onChange={setBannerY}
+                />
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBannerZoom(1)
+                    setBannerX(0)
+                    setBannerY(0)
+                  }}
+                  className="border-2 border-black bg-[#191B1F] py-3 text-xs font-black uppercase text-white"
+                >
+                  Reset Posisi
+                </button>
+
+                <button
+                  type="button"
+                  disabled={uploadingBanner}
+                  onClick={handleConfirmBannerUpload}
+                  className="border-2 border-black bg-[#53FC18] py-3 text-xs font-black uppercase text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50"
+                >
+                  {uploadingBanner ? "Uploading..." : "Upload Banner Ini"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <section className="flex-1 overflow-y-auto">
           <div className="relative h-[320px] overflow-hidden border-b-4 border-black bg-[#191B1F]">
             {profile?.banner_url ? (
@@ -249,11 +451,11 @@ export default function MyProfilePage() {
             <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11] via-[#0B0E11]/60 to-black/20" />
 
             <label className="absolute bottom-6 right-8 z-20 cursor-pointer border-2 border-black bg-[#53FC18] px-5 py-3 text-xs font-black uppercase tracking-wider text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:bg-[#6eff3b]">
-              {uploadingBanner ? "UPLOADING..." : "CHANGE BANNER"}
+              CHANGE BANNER
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
-                onChange={handleBannerChange}
+                onChange={handleBannerSelect}
                 className="hidden"
                 disabled={uploadingBanner}
               />
@@ -345,52 +547,13 @@ export default function MyProfilePage() {
                 </h2>
 
                 <div className="mt-8 grid gap-5 md:grid-cols-2">
-                  <Input
-                    label="USERNAME"
-                    value={form.username}
-                    onChange={(value) => updateField("username", value)}
-                  />
-
-                  <Input
-                    label="DISPLAY NAME"
-                    value={form.display_name}
-                    onChange={(value) => updateField("display_name", value)}
-                  />
-
-                  <Select
-                    label="GENDER"
-                    value={form.gender}
-                    onChange={(value) => updateField("gender", value)}
-                    options={["", "Male", "Female", "Prefer not to say"]}
-                  />
-
-                  <Input
-                    label="REGION / SERVER"
-                    value={form.region}
-                    onChange={(value) => updateField("region", value)}
-                    placeholder="INDONESIA"
-                  />
-
-                  <Input
-                    label="FAVORITE GAME"
-                    value={form.favorite_game}
-                    onChange={(value) => updateField("favorite_game", value)}
-                    placeholder="MOBILE LEGENDS"
-                  />
-
-                  <Input
-                    label="GAME RANK"
-                    value={form.game_rank}
-                    onChange={(value) => updateField("game_rank", value)}
-                    placeholder="MYTHIC"
-                  />
-
-                  <Input
-                    label="PREFERRED ROLE"
-                    value={form.preferred_role}
-                    onChange={(value) => updateField("preferred_role", value)}
-                    placeholder="JUNGLER"
-                  />
+                  <Input label="USERNAME" value={form.username} onChange={(value) => updateField("username", value)} />
+                  <Input label="DISPLAY NAME" value={form.display_name} onChange={(value) => updateField("display_name", value)} />
+                  <Select label="GENDER" value={form.gender} onChange={(value) => updateField("gender", value)} options={["", "Male", "Female", "Prefer not to say"]} />
+                  <Input label="REGION / SERVER" value={form.region} onChange={(value) => updateField("region", value)} placeholder="INDONESIA" />
+                  <Input label="FAVORITE GAME" value={form.favorite_game} onChange={(value) => updateField("favorite_game", value)} placeholder="MOBILE LEGENDS" />
+                  <Input label="GAME RANK" value={form.game_rank} onChange={(value) => updateField("game_rank", value)} placeholder="MYTHIC" />
+                  <Input label="PREFERRED ROLE" value={form.preferred_role} onChange={(value) => updateField("preferred_role", value)} placeholder="JUNGLER" />
 
                   <div className="md:col-span-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
@@ -485,11 +648,48 @@ export default function MyProfilePage() {
   )
 }
 
+function ControlRange({
+  label,
+  min,
+  max,
+  step,
+  value,
+  onChange,
+}: {
+  label: string
+  min: number
+  max: number
+  step: number
+  value: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <label className="block border-2 border-black bg-[#191B1F] p-4">
+      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+        {label}: {value}
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-3 w-full accent-[#53FC18]"
+      />
+    </label>
+  )
+}
+
 function BadgePreview({ badge }: { badge: ShopItem }) {
   return (
     <span className="inline-flex items-center gap-2 border-2 border-black bg-[#191B1F] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#53FC18]">
       {badge.image_url && (
-        <img src={badge.image_url} alt={badge.name} className="h-5 w-5 object-contain" />
+        <img
+          src={badge.image_url}
+          alt={badge.name}
+          className="h-5 w-5 object-contain"
+        />
       )}
       {badge.name}
     </span>
