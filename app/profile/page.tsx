@@ -11,6 +11,7 @@ import {
   uploadBanner,
 } from "@/services/profile.service"
 import { getMyInventory, equipItem } from "@/services/economy.service"
+import MabarLoading from "@/components/ui/MabarLoading"
 
 interface ShopItem {
   id: string
@@ -341,21 +342,19 @@ export default function MyProfilePage() {
     }
   }, [])
 
-  if (loading) {
-    return (
-      <ProtectedRoute>
-        <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
-          <Sidebar />
+if (loading) {
+  return (
+    <ProtectedRoute>
+      <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
+        <Sidebar />
 
-          <section className="flex flex-1 items-center justify-center">
-            <div className="border-2 border-black bg-[#0E1318] p-8 text-xs font-black uppercase tracking-widest text-[#53FC18] shadow-[5px_5px_0px_0px_rgba(83,252,24,1)]">
-              LOADING PROFILE...
-            </div>
-          </section>
-        </main>
-      </ProtectedRoute>
-    )
-  }
+        <section className="flex flex-1 items-center justify-center">
+          <MabarLoading mode="section" />
+        </section>
+      </main>
+    </ProtectedRoute>
+  )
+}
 
   return (
     <ProtectedRoute>

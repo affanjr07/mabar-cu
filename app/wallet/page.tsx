@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Sidebar from "@/components/layout/Sidebar"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
+import MabarLoading from "@/components/ui/MabarLoading"
 import {
   getMyWallet,
   topUpDemo,
@@ -140,7 +141,10 @@ export default function WalletPage() {
       await loadData()
     } catch (error: any) {
       console.log("GIFT ERROR DETAIL:", error.response?.data || error.message)
-      setMessage(error.response?.data?.message || "Gagal gift point. Cek email target dan saldo.")
+      setMessage(
+        error.response?.data?.message ||
+          "Gagal gift point. Cek email target dan saldo."
+      )
     } finally {
       setActionLoading(false)
     }
@@ -165,9 +169,7 @@ export default function WalletPage() {
 
         {loading ? (
           <section className="flex flex-1 items-center justify-center">
-            <div className="animate-pulse border-2 border-black bg-[#0E1318] p-6 text-xs font-black uppercase text-[#53FC18] shadow-[4px_4px_0px_0px_#53FC18]">
-              SYSTEM_LOADING: FETCHING_WALLET_DATA...
-            </div>
+            <MabarLoading mode="section" />
           </section>
         ) : (
           <section className="custom-scrollbar relative flex-1 overflow-y-auto p-6 lg:p-10">
@@ -188,10 +190,7 @@ export default function WalletPage() {
                       {giftAmount} Points
                     </span>{" "}
                     ke{" "}
-                    <span className="font-black text-white">
-                      {targetEmail}
-                    </span>
-                    .
+                    <span className="font-black text-white">{targetEmail}</span>.
                   </p>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -296,24 +295,16 @@ export default function WalletPage() {
                 </p>
 
                 <div className="mt-5 space-y-4">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-black uppercase text-zinc-400">
-                      Target Email
-                    </span>
-
+                  <InputLabel label="Target Email">
                     <input
                       value={targetEmail}
                       onChange={(e) => setTargetEmail(e.target.value)}
                       placeholder="user@example.com"
                       className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black outline-none transition-colors focus:border-[#53FC18]"
                     />
-                  </div>
+                  </InputLabel>
 
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-black uppercase text-zinc-400">
-                      Amount Points
-                    </span>
-
+                  <InputLabel label="Amount Points">
                     <input
                       type="number"
                       value={giftAmount}
@@ -321,20 +312,16 @@ export default function WalletPage() {
                       placeholder="0"
                       className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase outline-none transition-colors focus:border-[#53FC18]"
                     />
-                  </div>
+                  </InputLabel>
 
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-black uppercase text-zinc-400">
-                      Optional Message
-                    </span>
-
+                  <InputLabel label="Optional Message">
                     <input
                       value={giftMessage}
                       onChange={(e) => setGiftMessage(e.target.value)}
                       placeholder="HAVE FUN!"
                       className="h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs font-black uppercase outline-none transition-colors focus:border-[#53FC18]"
                     />
-                  </div>
+                  </InputLabel>
 
                   <button
                     disabled={actionLoading}
@@ -421,6 +408,23 @@ export default function WalletPage() {
         )}
       </main>
     </ProtectedRoute>
+  )
+}
+
+function InputLabel({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-1">
+      <span className="text-[10px] font-black uppercase text-zinc-400">
+        {label}
+      </span>
+      {children}
+    </div>
   )
 }
 

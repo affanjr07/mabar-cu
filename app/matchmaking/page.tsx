@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Sidebar from "@/components/layout/Sidebar"
 import PartyCard from "@/components/matchmaking/PartyCard"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
+import MabarLoading from "@/components/ui/MabarLoading"
 import { getGames } from "@/services/game.service"
 import { useAuthStore } from "@/store/auth.store"
 import {
@@ -114,7 +115,9 @@ export default function MatchmakingPage() {
 
   const selectedGame = games.find((game) => game.id === selectedGameId)
   const selectedRoles = selectedGame?.roles?.length ? selectedGame.roles : []
-  const selectedRanks = selectedGame?.ranks?.length ? selectedGame.ranks : FALLBACK_RANKS
+  const selectedRanks = selectedGame?.ranks?.length
+    ? selectedGame.ranks
+    : FALLBACK_RANKS
 
   const [form, setForm] = useState({
     game_id: "",
@@ -273,9 +276,17 @@ export default function MatchmakingPage() {
     }
 
     const targetRoom = rooms.find((room) => room.id === roomId)
-    const roomRoles = targetRoom?.games?.roles?.length ? targetRoom.games.roles : []
-    const missingRoles = targetRoom?.missing_roles?.length ? targetRoom.missing_roles : []
-    const availableRoles = missingRoles.length ? missingRoles : roomRoles.length ? roomRoles : [FLEX_ROLE]
+    const roomRoles = targetRoom?.games?.roles?.length
+      ? targetRoom.games.roles
+      : []
+    const missingRoles = targetRoom?.missing_roles?.length
+      ? targetRoom.missing_roles
+      : []
+    const availableRoles = missingRoles.length
+      ? missingRoles
+      : roomRoles.length
+        ? roomRoles
+        : [FLEX_ROLE]
 
     setRoleModal({
       show: true,
@@ -375,6 +386,20 @@ export default function MatchmakingPage() {
     loadRooms()
   }, [])
 
+if (loading) {
+  return (
+    <ProtectedRoute>
+      <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
+        <Sidebar />
+
+        <section className="flex flex-1 items-center justify-center">
+          <MabarLoading mode="section" />
+        </section>
+      </main>
+    </ProtectedRoute>
+  )
+}
+
   return (
     <ProtectedRoute>
       <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white selection:bg-[#53FC18] selection:text-black">
@@ -397,7 +422,9 @@ export default function MatchmakingPage() {
 
               <div className="mt-6 grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setTriangleAlert({ show: false, title: "", message: "" })}
+                  onClick={() =>
+                    setTriangleAlert({ show: false, title: "", message: "" })
+                  }
                   className="border-2 border-black bg-zinc-800 py-3 text-xs font-black uppercase text-white hover:bg-zinc-700"
                 >
                   Mengerti
@@ -510,7 +537,10 @@ export default function MatchmakingPage() {
           {message && (
             <div className="mt-6 flex items-center justify-between border-2 border-black bg-[#142A14] p-4 text-xs font-black uppercase tracking-wider text-[#53FC18] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
               <span>{message}</span>
-              <button onClick={() => setMessage("")} className="text-zinc-500 hover:text-white">
+              <button
+                onClick={() => setMessage("")}
+                className="text-zinc-500 hover:text-white"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -580,7 +610,9 @@ export default function MatchmakingPage() {
             <div className="mt-4 border-2 border-black bg-[#0E1318] p-4 text-xs font-black uppercase text-zinc-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
               <span className="text-[#53FC18]">{selectedGame.name}</span> •{" "}
               {selectedGame.genre} • Max Party {selectedGame.max_party_size || 5} •{" "}
-              {selectedRoles.length ? `Roles: ${selectedRoles.join(", ")}` : "No fixed roles"}
+              {selectedRoles.length
+                ? `Roles: ${selectedRoles.join(", ")}`
+                : "No fixed roles"}
             </div>
           )}
 
@@ -661,11 +693,7 @@ export default function MatchmakingPage() {
               </div>
             </div>
 
-            {loading ? (
-              <div className="border-2 border-dashed border-[#191B1F] bg-[#0E1318] p-8 text-center text-xs font-black uppercase tracking-widest text-zinc-500">
-                Loading party rooms...
-              </div>
-            ) : rooms.length === 0 ? (
+            {rooms.length === 0 ? (
               <div className="border-2 border-dashed border-[#191B1F] bg-[#0E1318] p-8 text-center text-xs font-black uppercase tracking-widest text-zinc-500">
                 <ShieldAlert className="mx-auto mb-3 text-zinc-600" size={28} />
                 Belum ada party room yang tersedia.
@@ -771,7 +799,9 @@ function CreateRoomModal({
           <InputBox label="Title">
             <input
               value={form.title}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, title: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev: any) => ({ ...prev, title: e.target.value }))
+              }
               placeholder="Push Rank Malam Ini"
               className="input-gaming"
             />
@@ -784,7 +814,9 @@ function CreateRoomModal({
                 const gameId = e.target.value
                 const game = games.find((item) => item.id === gameId)
                 const nextRoles = game?.roles?.length ? game.roles : []
-                const nextRanks = game?.ranks?.length ? game.ranks : FALLBACK_RANKS
+                const nextRanks = game?.ranks?.length
+                  ? game.ranks
+                  : FALLBACK_RANKS
 
                 setForm((prev: any) => ({
                   ...prev,
@@ -809,7 +841,12 @@ function CreateRoomModal({
           <InputBox label="Room Type">
             <select
               value={form.room_type}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, room_type: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev: any) => ({
+                  ...prev,
+                  room_type: e.target.value,
+                }))
+              }
               className="input-gaming"
             >
               <option value="public">PUBLIC</option>
@@ -820,7 +857,12 @@ function CreateRoomModal({
           <InputBox label="Game Mode">
             <input
               value={form.game_mode}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, game_mode: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev: any) => ({
+                  ...prev,
+                  game_mode: e.target.value,
+                }))
+              }
               className="input-gaming"
             />
           </InputBox>
@@ -828,7 +870,12 @@ function CreateRoomModal({
           <InputBox label="Target Rank">
             <select
               value={form.target_rank}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, target_rank: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev: any) => ({
+                  ...prev,
+                  target_rank: e.target.value,
+                }))
+              }
               className="input-gaming"
             >
               {ranks.map((item) => (
@@ -844,7 +891,10 @@ function CreateRoomModal({
               <select
                 value={form.selected_role}
                 onChange={(e) =>
-                  setForm((prev: any) => ({ ...prev, selected_role: e.target.value }))
+                  setForm((prev: any) => ({
+                    ...prev,
+                    selected_role: e.target.value,
+                  }))
                 }
                 className="input-gaming"
               >
@@ -862,7 +912,9 @@ function CreateRoomModal({
           <InputBox label="Region">
             <input
               value={form.region}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, region: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev: any) => ({ ...prev, region: e.target.value }))
+              }
               className="input-gaming"
             />
           </InputBox>
@@ -874,7 +926,10 @@ function CreateRoomModal({
               max={50}
               value={form.max_players}
               onChange={(e) =>
-                setForm((prev: any) => ({ ...prev, max_players: Number(e.target.value) }))
+                setForm((prev: any) => ({
+                  ...prev,
+                  max_players: Number(e.target.value),
+                }))
               }
               className="input-gaming"
             />
@@ -885,7 +940,12 @@ function CreateRoomModal({
           <InputBox label="Description">
             <textarea
               value={form.description}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev: any) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Butuh tim solid, no toxic, gas push rank."
               className="min-h-24 w-full border-2 border-black bg-[#191B1F] p-4 text-xs font-bold uppercase outline-none focus:border-[#53FC18]"
             />

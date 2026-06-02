@@ -4,8 +4,7 @@ import { useEffect, useState } from "react"
 import Sidebar from "@/components/layout/Sidebar"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
 import AvatarFrame from "@/components/profile/AvatarFrame"
-import EquippedBadges from "@/components/profile/EquippedBadges"
-import { getMyProfile } from "@/services/profile.service"
+import MabarLoading from "@/components/ui/MabarLoading"
 import {
   buyShopItem,
   equipItem,
@@ -13,6 +12,7 @@ import {
   getMyWallet,
   getShopItems,
 } from "@/services/economy.service"
+import { getMyProfile } from "@/services/profile.service"
 
 function parseMetadata(metadata: any) {
   if (!metadata) return {}
@@ -30,19 +30,14 @@ function getRarityClass(rarity?: string) {
   switch (rarity) {
     case "mythic":
       return "border-yellow-400 shadow-[0_0_25px_rgba(250,204,21,0.45)]"
-
     case "legendary":
       return "border-orange-400 shadow-[0_0_25px_rgba(251,146,60,0.35)]"
-
     case "epic":
       return "border-purple-500 shadow-[0_0_25px_rgba(168,85,247,0.35)]"
-
     case "elite":
       return "border-green-400 shadow-[0_0_25px_rgba(74,222,128,0.35)]"
-
     case "rare":
       return "border-blue-400 shadow-[0_0_25px_rgba(96,165,250,0.35)]"
-
     default:
       return "border-zinc-500"
   }
@@ -114,6 +109,23 @@ export default function ShopPage() {
     loadData()
   }, [])
 
+  const isInitialLoading =
+    loading && !wallet && !profile && items.length === 0 && inventory.length === 0
+
+  if (isInitialLoading) {
+    return (
+      <ProtectedRoute>
+        <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
+          <Sidebar />
+
+          <section className="flex flex-1 items-center justify-center">
+            <MabarLoading mode="section" />
+          </section>
+        </main>
+      </ProtectedRoute>
+    )
+  }
+
   return (
     <ProtectedRoute>
       <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
@@ -151,24 +163,33 @@ export default function ShopPage() {
               </h2>
             </div>
 
-            <FilterButton active={type === ""} onClick={() => {
-              setType("")
-              loadData("")
-            }}>
+            <FilterButton
+              active={type === ""}
+              onClick={() => {
+                setType("")
+                loadData("")
+              }}
+            >
               All Items
             </FilterButton>
 
-            <FilterButton active={type === "avatar_border"} onClick={() => {
-              setType("avatar_border")
-              loadData("avatar_border")
-            }}>
+            <FilterButton
+              active={type === "avatar_border"}
+              onClick={() => {
+                setType("avatar_border")
+                loadData("avatar_border")
+              }}
+            >
               Avatar Border
             </FilterButton>
 
-            <FilterButton active={type === "badge"} onClick={() => {
-              setType("badge")
-              loadData("badge")
-            }}>
+            <FilterButton
+              active={type === "badge"}
+              onClick={() => {
+                setType("badge")
+                loadData("badge")
+              }}
+            >
               Badge
             </FilterButton>
           </div>
@@ -177,8 +198,8 @@ export default function ShopPage() {
             <h2 className="mb-6 text-2xl font-black uppercase">Shop Items</h2>
 
             {loading ? (
-              <div className="border-2 border-black bg-[#0E1318] p-8 text-xs font-black uppercase text-zinc-500">
-                Loading shop...
+              <div className="flex min-h-[320px] items-center justify-center border-2 border-black bg-[#0E1318] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <MabarLoading mode="section" />
               </div>
             ) : items.length === 0 ? (
               <div className="border-2 border-dashed border-black bg-[#0E1318] p-8 text-xs font-black uppercase text-zinc-500">
@@ -193,7 +214,9 @@ export default function ShopPage() {
                   return (
                     <div
                       key={item.id}
-                      className={`border-2 bg-[#0E1318] p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] ${getRarityClass(item.rarity)}`}
+                      className={`border-2 bg-[#0E1318] p-6 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] ${getRarityClass(
+                        item.rarity
+                      )}`}
                     >
                       <ItemPreview
                         item={item}
@@ -267,7 +290,9 @@ export default function ShopPage() {
                   return (
                     <div
                       key={inv.id}
-                      className={`border-2 bg-[#0E1318] p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${getRarityClass(item.rarity)}`}
+                      className={`border-2 bg-[#0E1318] p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${getRarityClass(
+                        item.rarity
+                      )}`}
                     >
                       <ItemPreview
                         item={item}

@@ -40,66 +40,6 @@ function SettingsContent() {
         {/* CONTAINER GRID */}
         <div className="grid gap-6 max-w-5xl">
           
-          {/* ACCOUNT SETTINGS */}
-          <div className="border-2 border-black bg-[#0E1318] p-4 sm:p-6 shadow-[4px_4px_0px_0px_rgba(83,252,24,1)] sm:shadow-[5px_5px_0px_0px_rgba(83,252,24,1)] transition-all">
-            <div className="flex items-center gap-2 text-[#53FC18] mb-4">
-              <User size={18} className="shrink-0 stroke-[2.5]" />
-              <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-white">
-                Account Settings
-              </h2>
-            </div>
-
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">// USERNAME</span>
-                <input
-                  type="text"
-                  placeholder="Username"
-                  className="h-11 sm:h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs sm:text-sm font-bold uppercase outline-none focus:border-[#53FC18] transition-colors text-white placeholder-zinc-700"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">// EMAIL ADDRESS</span>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  className="h-11 sm:h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs sm:text-sm font-bold uppercase outline-none focus:border-[#53FC18] transition-colors text-white placeholder-zinc-700"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* PROFILE SETTINGS */}
-          <div className="border-2 border-black bg-[#0E1318] p-4 sm:p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="flex items-center gap-2 text-zinc-400 mb-4">
-              <Gamepad2 size={18} className="shrink-0 stroke-[2.5]" />
-              <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-white">
-                Profile Settings
-              </h2>
-            </div>
-
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">// FAVORITE TITLE</span>
-                <input
-                  type="text"
-                  placeholder="Favorite Game"
-                  className="h-11 sm:h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs sm:text-sm font-bold uppercase outline-none focus:border-[#53FC18] transition-colors text-white placeholder-zinc-700"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">// COMPETITIVE RANK</span>
-                <input
-                  type="text"
-                  placeholder="Game Rank"
-                  className="h-11 sm:h-12 w-full border-2 border-black bg-[#191B1F] px-4 text-xs sm:text-sm font-bold uppercase outline-none focus:border-[#53FC18] transition-colors text-white placeholder-zinc-700"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* NOTIFICATION SETTINGS */}
           <div className="border-2 border-black bg-[#0E1318] p-4 sm:p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <div className="flex items-center gap-2 text-zinc-400 mb-4">
