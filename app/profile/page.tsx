@@ -227,30 +227,54 @@ export default function MyProfilePage() {
     const imageRatio = image.width / image.height
     const bannerRatio = BANNER_WIDTH / BANNER_HEIGHT
 
+    let bgWidth = BANNER_WIDTH
+    let bgHeight = BANNER_HEIGHT
+
+    if (imageRatio > bannerRatio) {
+      bgHeight = BANNER_HEIGHT
+      bgWidth = bgHeight * imageRatio
+    } else {
+      bgWidth = BANNER_WIDTH
+      bgHeight = bgWidth / imageRatio
+    }
+
+    ctx.globalAlpha = 0.35
+    ctx.filter = "blur(18px)"
+    ctx.drawImage(
+      image,
+      (BANNER_WIDTH - bgWidth) / 2,
+      (BANNER_HEIGHT - bgHeight) / 2,
+      bgWidth,
+      bgHeight
+    )
+
+    ctx.globalAlpha = 1
+    ctx.filter = "none"
+
     let drawWidth = BANNER_WIDTH
     let drawHeight = BANNER_HEIGHT
 
     if (imageRatio > bannerRatio) {
-      drawHeight = BANNER_HEIGHT
-      drawWidth = drawHeight * imageRatio
-    } else {
       drawWidth = BANNER_WIDTH
       drawHeight = drawWidth / imageRatio
+    } else {
+      drawHeight = BANNER_HEIGHT
+      drawWidth = drawHeight * imageRatio
     }
 
     drawWidth *= bannerZoom
     drawHeight *= bannerZoom
 
-    const maxMoveX = Math.max((drawWidth - BANNER_WIDTH) / 2, 0)
-    const maxMoveY = Math.max((drawHeight - BANNER_HEIGHT) / 2, 0)
+    const moveX = (bannerX / 100) * BANNER_WIDTH
+    const moveY = (bannerY / 100) * BANNER_HEIGHT
 
-    const offsetX = (bannerX / 100) * maxMoveX
-    const offsetY = (bannerY / 100) * maxMoveY
-
-    const drawX = (BANNER_WIDTH - drawWidth) / 2 + offsetX
-    const drawY = (BANNER_HEIGHT - drawHeight) / 2 + offsetY
-
-    ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+    ctx.drawImage(
+      image,
+      (BANNER_WIDTH - drawWidth) / 2 + moveX,
+      (BANNER_HEIGHT - drawHeight) / 2 + moveY,
+      drawWidth,
+      drawHeight
+    )
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
@@ -322,6 +346,7 @@ export default function MyProfilePage() {
       <ProtectedRoute>
         <main className="flex min-h-screen bg-[#0B0E11] font-mono text-white">
           <Sidebar />
+
           <section className="flex flex-1 items-center justify-center">
             <div className="border-2 border-black bg-[#0E1318] p-8 text-xs font-black uppercase tracking-widest text-[#53FC18] shadow-[5px_5px_0px_0px_rgba(83,252,24,1)]">
               LOADING PROFILE...
@@ -338,15 +363,16 @@ export default function MyProfilePage() {
         <Sidebar />
 
         {showBannerPreview && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-5xl border-4 border-black bg-[#0E1318] p-6 shadow-[8px_8px_0px_0px_rgba(83,252,24,1)]">
-              <div className="flex flex-col justify-between gap-4 border-b-2 border-[#191B1F] pb-4 md:flex-row md:items-center">
+          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/85 p-3 backdrop-blur-sm sm:p-6">
+            <div className="custom-scrollbar max-h-[95vh] w-full max-w-5xl overflow-y-auto border-4 border-black bg-[#0E1318] p-4 shadow-[6px_6px_0px_0px_rgba(83,252,24,1)] sm:p-6">
+              <div className="flex flex-col justify-between gap-4 border-b-2 border-[#191B1F] pb-4 sm:flex-row sm:items-center">
                 <div>
-                  <h2 className="text-2xl font-black uppercase tracking-tight text-white">
+                  <h2 className="text-xl font-black uppercase tracking-tight text-white sm:text-2xl">
                     Preview Banner
                   </h2>
-                  <p className="mt-1 text-xs font-bold uppercase text-zinc-500">
-                    Atur posisi dan zoom sebelum banner diupload.
+
+                  <p className="mt-1 text-[10px] font-bold uppercase text-zinc-500 sm:text-xs">
+                    Atur zoom dan posisi sebelum upload.
                   </p>
                 </div>
 
@@ -359,30 +385,40 @@ export default function MyProfilePage() {
                 </button>
               </div>
 
-              <div className="mt-6 overflow-hidden border-4 border-black bg-[#191B1F]">
+              <div className="mt-5 overflow-hidden border-4 border-black bg-[#191B1F]">
                 <div className="relative aspect-[16/5] w-full overflow-hidden">
                   {bannerPreviewUrl && (
-                    <img
-                      src={bannerPreviewUrl}
-                      alt="Banner Preview"
-                      className="absolute left-1/2 top-1/2 min-h-full min-w-full object-cover"
-                      style={{
-                        transform: `translate(calc(-50% + ${bannerX}px), calc(-50% + ${bannerY}px)) scale(${bannerZoom})`,
-                      }}
-                    />
+                    <>
+                      <img
+                        src={bannerPreviewUrl}
+                        alt="Banner Blur Background"
+                        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-lg"
+                      />
+
+                      <img
+                        src={bannerPreviewUrl}
+                        alt="Banner Preview"
+                        className="absolute left-1/2 top-1/2 max-h-none max-w-none object-contain"
+                        style={{
+                          width: `${100 * bannerZoom}%`,
+                          transform: `translate(calc(-50% + ${bannerX}px), calc(-50% + ${bannerY}px))`,
+                        }}
+                      />
+                    </>
                   )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
-                  <div className="absolute left-5 top-5 border-2 border-black bg-[#53FC18] px-3 py-1 text-[10px] font-black uppercase text-black">
-                    1600 x 500 Preview
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10" />
+
+                  <div className="absolute left-3 top-3 border-2 border-black bg-[#53FC18] px-2 py-1 text-[9px] font-black uppercase text-black sm:left-5 sm:top-5 sm:px-3">
+                    Banner Preview
                   </div>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
                 <ControlRange
                   label="Zoom"
-                  min={1}
+                  min={0.45}
                   max={2.5}
                   step={0.05}
                   value={bannerZoom}
@@ -390,25 +426,25 @@ export default function MyProfilePage() {
                 />
 
                 <ControlRange
-                  label="Geser Kiri / Kanan"
-                  min={-120}
-                  max={120}
+                  label="Kiri / Kanan"
+                  min={-220}
+                  max={220}
                   step={1}
                   value={bannerX}
                   onChange={setBannerX}
                 />
 
                 <ControlRange
-                  label="Geser Atas / Bawah"
-                  min={-120}
-                  max={120}
+                  label="Atas / Bawah"
+                  min={-160}
+                  max={160}
                   step={1}
                   value={bannerY}
                   onChange={setBannerY}
                 />
               </div>
 
-              <div className="mt-6 grid grid-cols-2 gap-3">
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -547,18 +583,58 @@ export default function MyProfilePage() {
                 </h2>
 
                 <div className="mt-8 grid gap-5 md:grid-cols-2">
-                  <Input label="USERNAME" value={form.username} onChange={(value) => updateField("username", value)} />
-                  <Input label="DISPLAY NAME" value={form.display_name} onChange={(value) => updateField("display_name", value)} />
-                  <Select label="GENDER" value={form.gender} onChange={(value) => updateField("gender", value)} options={["", "Male", "Female", "Prefer not to say"]} />
-                  <Input label="REGION / SERVER" value={form.region} onChange={(value) => updateField("region", value)} placeholder="INDONESIA" />
-                  <Input label="FAVORITE GAME" value={form.favorite_game} onChange={(value) => updateField("favorite_game", value)} placeholder="MOBILE LEGENDS" />
-                  <Input label="GAME RANK" value={form.game_rank} onChange={(value) => updateField("game_rank", value)} placeholder="MYTHIC" />
-                  <Input label="PREFERRED ROLE" value={form.preferred_role} onChange={(value) => updateField("preferred_role", value)} placeholder="JUNGLER" />
+                  <Input
+                    label="USERNAME"
+                    value={form.username}
+                    onChange={(value) => updateField("username", value)}
+                  />
+
+                  <Input
+                    label="DISPLAY NAME"
+                    value={form.display_name}
+                    onChange={(value) => updateField("display_name", value)}
+                  />
+
+                  <Select
+                    label="GENDER"
+                    value={form.gender}
+                    onChange={(value) => updateField("gender", value)}
+                    options={["", "Male", "Female", "Prefer not to say"]}
+                  />
+
+                  <Input
+                    label="REGION / SERVER"
+                    value={form.region}
+                    onChange={(value) => updateField("region", value)}
+                    placeholder="INDONESIA"
+                  />
+
+                  <Input
+                    label="FAVORITE GAME"
+                    value={form.favorite_game}
+                    onChange={(value) => updateField("favorite_game", value)}
+                    placeholder="MOBILE LEGENDS"
+                  />
+
+                  <Input
+                    label="GAME RANK"
+                    value={form.game_rank}
+                    onChange={(value) => updateField("game_rank", value)}
+                    placeholder="MYTHIC"
+                  />
+
+                  <Input
+                    label="PREFERRED ROLE"
+                    value={form.preferred_role}
+                    onChange={(value) => updateField("preferred_role", value)}
+                    placeholder="JUNGLER"
+                  />
 
                   <div className="md:col-span-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                       BIO
                     </label>
+
                     <textarea
                       value={form.bio}
                       onChange={(e) => updateField("bio", e.target.value)}
@@ -617,6 +693,7 @@ export default function MyProfilePage() {
                               <p className="truncate text-xs font-black uppercase text-white">
                                 {shopItem.name}
                               </p>
+
                               <p className="text-[9px] font-black uppercase text-[#53FC18]">
                                 {shopItem.type} • {shopItem.rarity || "common"}
                               </p>
@@ -666,8 +743,9 @@ function ControlRange({
   return (
     <label className="block border-2 border-black bg-[#191B1F] p-4">
       <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-        {label}: {value}
+        {label}: {Number(value).toFixed(2)}
       </span>
+
       <input
         type="range"
         min={min}
@@ -702,6 +780,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       <h2 className="text-4xl font-black uppercase tracking-tight text-[#53FC18]">
         {value}
       </h2>
+
       <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
         {label}
       </p>
@@ -725,6 +804,7 @@ function Input({
       <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
         {label}
       </span>
+
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -751,6 +831,7 @@ function Select({
       <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
         {label}
       </span>
+
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
