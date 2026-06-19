@@ -2,7 +2,7 @@ MABAR.CU adalah aplikasi pencarian teman bermain game (gaming matchmaking platfo
 
 👥 Anggota Kelompok:
 Affan Afyga
-Rendy Januarta 
+Rendy Januarta
 Michel Garcia Arteta Ginting
 Juan Carlos Simanungkalit
 
