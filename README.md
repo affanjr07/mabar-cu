@@ -1,115 +1,170 @@
-MABAR.CU adalah aplikasi pencarian teman bermain game (gaming matchmaking platform) yang dikembangkan sebagai proyek akhir mata kuliah Pemrograman Berorientasi Objek (PBO). Aplikasi ini membantu pemain menemukan teman mabar berdasarkan game, rank, role, dan preferensi bermain, sekaligus menyediakan fitur komunikasi dan manajemen room secara realtime.
+# MABAR.CU
 
-👥 Anggota Kelompok:
-Affan Afyga
-Rendy Januarta
-Michel Garcia Arteta Ginting
-Juan Carlos Simanungkalit
+## Deskripsi Project
 
-📖 Deskripsi Proyek
-MABAR.CU dirancang untuk mempermudah pemain dalam mencari teman bermain yang sesuai dengan kebutuhan mereka. Pengguna dapat membuat akun, mencari pemain lain, mengikuti pengguna, membuat room matchmaking, bergabung ke room, melakukan chat, dan mengelola profil pribadi.
-Aplikasi ini menerapkan konsep Pemrograman Berorientasi Objek (PBO) secara menyeluruh dengan arsitektur yang terstruktur dan modern.
+MABAR.CU adalah platform sosial gaming berbasis web yang dirancang untuk membantu para gamer menemukan teman bermain sesuai game, rank, role, dan preferensi bermain mereka. Platform ini hadir sebagai solusi bagi pemain yang kesulitan mencari rekan satu tim yang cocok, terutama pada game kompetitif dan multiplayer online.
 
-🛠️ Teknologi yang Digunakan
-• Frontend
-JavaFX
-FXML
-CSS JavaFX
+Melalui MABAR.CU, pengguna dapat membuat profil gamer, mencari teman bermain, membentuk party room, bergabung ke komunitas game, berkomunikasi melalui chat, mengikuti turnamen, hingga melakukan booking Pro Player. Seluruh fitur tersebut terintegrasi dalam satu platform untuk menciptakan pengalaman bermain yang lebih terorganisir dan menyenangkan.
 
-• Backend
-Spring Boot
-Spring MVC
-Spring Security
-Spring Validation
+## Tujuan Project
 
-• Database
-H2 Database
-ORM
-JPA (Java Persistence API)
-Hibernate
-Build Tools
-Maven
-Bahasa Pemrograman
-Java 17
+Project ini dibuat untuk:
 
-🏗️ Arsitektur Sistem
-Proyek ini menggunakan pola:
-MVC Architecture
+* Membantu gamer menemukan teman bermain yang sesuai.
+* Mempermudah pembentukan tim berdasarkan rank dan role.
+* Menyediakan wadah komunitas gaming dalam satu platform.
+* Meningkatkan komunikasi antar pemain.
+* Menyediakan sistem turnamen dan aktivitas komunitas yang lebih terstruktur.
 
-Model
-│
-├── Entity
-├── Repository
-│
-Service
-│
-Controller
-│
-View (JavaFX)
-Struktur ini memisahkan:
-Tampilan (View)
-Logika Bisnis (Service)
-Pengelolaan Data (Repository)
-Kontrol Aplikasi (Controller)
-agar kode lebih mudah dikembangkan dan dipelihara.
+## Fitur Utama
 
-🗄️ Database
-Aplikasi menggunakan H2 Database sebagai database utama untuk menyimpan:
-Data User
-Profil User
-Friend List
-Matchmaking Room
-Chat
-Tournament
-Riwayat Aktivitas
+### Authentication
 
-🔒 Keamanan Sistem
-Keamanan aplikasi diimplementasikan menggunakan:
-Authentication (Login)
-Authorization (Role User & Admin)
-Password Encryption
-Session Management
-Input Validation
+* Register
+* Login
+* JWT Authentication
+* Protected Route
 
-📚 Implementasi 4 Pilar PBO
+### Profile System
 
-1. Encapsulation
-Data pada setiap class disimpan menggunakan atribut private dan diakses melalui getter serta setter.
-Contoh:
-private String username;
+* Profil Gamer
+* Avatar dan Banner Profil
+* Avatar Border
+* Badge System
+* Statistik Pemain
+* Followers dan Following
 
-public String getUsername() {
-    return username;
-}
+### Matchmaking System
 
-2. Inheritance
-Class tertentu mewarisi atribut dan perilaku dari class induk.
-Contoh:
-public class Admin extends User
+* Cari Teman Mabar
+* Filter Berdasarkan Game
+* Filter Berdasarkan Rank
+* Filter Berdasarkan Role
+* Party Room Public dan Private
+* Join Room dengan Kode
 
-3. Polymorphism
-Method yang sama dapat memiliki implementasi berbeda sesuai objek yang digunakan.
-Contoh:
-public void displayProfile()
+### Chat System
 
-4. Abstraction
-Menggunakan abstract class dan interface untuk menyembunyikan detail implementasi.
-Contoh:
-public interface UserService
+* Community Chat
+* Private Chat
+* Room Chat
+* Timestamp Pesan
+* Avatar Border pada Chat
 
-🎯 Tujuan Proyek
-Menerapkan konsep Pemrograman Berorientasi Objek secara nyata.
-Mengimplementasikan JavaFX dan Spring Boot dalam satu aplikasi.
-Membangun sistem matchmaking pemain yang modern dan mudah digunakan.
-Memenuhi seluruh kriteria teknis proyek akhir mata kuliah PBO.
+### Community System
 
-🚀 Cara Menjalankan
-Backend
-mvn spring-boot:run
-Backend berjalan pada:
-http://localhost:8085
-Frontend JavaFX
-mvn javafx:run
+* Channel Berdasarkan Game
+* Interaksi Antar Anggota Komunitas
 
-📌 Hasil yang Diharapkan
-Dengan MABAR.CU, pengguna dapat menemukan teman bermain yang sesuai, berkomunikasi dengan pemain lain, serta mengelola aktivitas gaming mereka dalam satu platform yang terintegrasi.
+### Tournament System
+
+* Pembuatan Turnamen
+* Manajemen Peserta
+* Informasi Turnamen
+
+### Pro Player Booking
+
+* Booking Pro Player
+* Manajemen Permintaan Booking
+
+### Admin Panel
+
+* Manajemen User
+* Ban dan Unban User
+* Mute User
+* Reports Management
+* Moderation Logs
+* Announcement Management
+
+## Teknologi Yang Digunakan
+
+### Frontend
+
+* Next.js 16
+* React.js
+* TypeScript
+* Tailwind CSS
+* Framer Motion
+* Zustand
+
+### Backend
+
+* Node.js
+* Express.js
+* TypeScript
+* REST API
+* JWT Authentication
+
+### Database & Storage
+
+* Supabase PostgreSQL
+* Supabase Storage
+
+### Moderation & Security
+
+* OpenAI Moderation API
+* Sightengine Image Moderation
+* Middleware Authentication
+* Middleware Authorization
+
+### Deployment
+
+* Vercel
+* Supabase Cloud
+
+## Arsitektur Sistem
+
+Frontend (Next.js)
+
+↓
+
+REST API (Express.js)
+
+↓
+
+Database (Supabase PostgreSQL)
+
+↓
+
+Storage (Supabase Storage)
+
+## Implementasi Object Oriented Programming (OOP)
+
+Project MABAR.CU menerapkan empat pilar utama Object Oriented Programming (OOP):
+
+### Encapsulation
+
+Logika bisnis dibungkus dalam controller seperti Chat Controller, Matchmaking Controller, Community Controller, dan Admin Controller sehingga data dan proses lebih terorganisir.
+
+### Abstraction
+
+Frontend hanya berinteraksi melalui service dan API tanpa perlu mengetahui proses internal backend maupun query database.
+
+### Inheritance
+
+Middleware seperti Authentication Middleware dan Role Middleware digunakan kembali pada berbagai route untuk mewariskan fitur autentikasi dan otorisasi.
+
+### Polymorphism
+
+Fungsi yang sama dapat menangani berbagai jenis data, seperti sistem chat yang dapat mengelola pesan teks, gambar, maupun stiker melalui satu mekanisme yang sama.
+
+## Keunggulan Project
+
+* Interface modern dengan tema gaming.
+* Sistem matchmaking berdasarkan rank dan role.
+* Community dan private chat.
+* Party room management.
+* Tournament management.
+* Pro Player booking.
+* Moderation system.
+* Arsitektur fullstack modern.
+* Mudah dikembangkan untuk fitur tambahan di masa depan.
+
+## Anggota Kelompok
+
+1. M. Affan Afyga
+2. Rendy Januarta Manurung
+3. Michael Garcia Arteta Ginting
+4. Juan Carlos Simanungkalit
+
+\dipelihara, dan siap untuk dikembangkan lebih lanjut di masa depan.
