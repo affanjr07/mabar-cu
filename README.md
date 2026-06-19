@@ -166,5 +166,3 @@ Fungsi yang sama dapat menangani berbagai jenis data, seperti sistem chat yang d
 2. Rendy Januarta Manurung
 3. Michael Garcia Arteta Ginting
 4. Juan Carlos Simanungkalit
-
-\dipelihara, dan siap untuk dikembangkan lebih lanjut di masa depan.
