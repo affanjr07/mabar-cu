@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+MABAR.CU adalah aplikasi pencarian teman bermain game (gaming matchmaking platform) yang dikembangkan sebagai proyek akhir mata kuliah Pemrograman Berorientasi Objek (PBO). Aplikasi ini membantu pemain menemukan teman mabar berdasarkan game, rank, role, dan preferensi bermain, sekaligus menyediakan fitur komunikasi dan manajemen room secara realtime.
 
-## Getting Started
+👥 Anggota Kelompok:
+Affan Afyga
+Rendy Januarta 
+Michel Garcia Arteta Ginting
+Juan Carlos Simanungkalit
 
-First, run the development server:
+📖 Deskripsi Proyek
+MABAR.CU dirancang untuk mempermudah pemain dalam mencari teman bermain yang sesuai dengan kebutuhan mereka. Pengguna dapat membuat akun, mencari pemain lain, mengikuti pengguna, membuat room matchmaking, bergabung ke room, melakukan chat, dan mengelola profil pribadi.
+Aplikasi ini menerapkan konsep Pemrograman Berorientasi Objek (PBO) secara menyeluruh dengan arsitektur yang terstruktur dan modern.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+🛠️ Teknologi yang Digunakan
+• Frontend
+JavaFX
+FXML
+CSS JavaFX
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+• Backend
+Spring Boot
+Spring MVC
+Spring Security
+Spring Validation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+• Database
+H2 Database
+ORM
+JPA (Java Persistence API)
+Hibernate
+Build Tools
+Maven
+Bahasa Pemrograman
+Java 17
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+🏗️ Arsitektur Sistem
+Proyek ini menggunakan pola:
+MVC Architecture
 
-## Learn More
+Model
+│
+├── Entity
+├── Repository
+│
+Service
+│
+Controller
+│
+View (JavaFX)
+Struktur ini memisahkan:
+Tampilan (View)
+Logika Bisnis (Service)
+Pengelolaan Data (Repository)
+Kontrol Aplikasi (Controller)
+agar kode lebih mudah dikembangkan dan dipelihara.
 
-To learn more about Next.js, take a look at the following resources:
+🗄️ Database
+Aplikasi menggunakan H2 Database sebagai database utama untuk menyimpan:
+Data User
+Profil User
+Friend List
+Matchmaking Room
+Chat
+Tournament
+Riwayat Aktivitas
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+🔒 Keamanan Sistem
+Keamanan aplikasi diimplementasikan menggunakan:
+Authentication (Login)
+Authorization (Role User & Admin)
+Password Encryption
+Session Management
+Input Validation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+📚 Implementasi 4 Pilar PBO
 
-## Deploy on Vercel
+1. Encapsulation
+Data pada setiap class disimpan menggunakan atribut private dan diakses melalui getter serta setter.
+Contoh:
+private String username;
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+public String getUsername() {
+    return username;
+}
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2. Inheritance
+Class tertentu mewarisi atribut dan perilaku dari class induk.
+Contoh:
+public class Admin extends User
+
+3. Polymorphism
+Method yang sama dapat memiliki implementasi berbeda sesuai objek yang digunakan.
+Contoh:
+public void displayProfile()
+
+4. Abstraction
+Menggunakan abstract class dan interface untuk menyembunyikan detail implementasi.
+Contoh:
+public interface UserService
+
+🎯 Tujuan Proyek
+Menerapkan konsep Pemrograman Berorientasi Objek secara nyata.
+Mengimplementasikan JavaFX dan Spring Boot dalam satu aplikasi.
+Membangun sistem matchmaking pemain yang modern dan mudah digunakan.
+Memenuhi seluruh kriteria teknis proyek akhir mata kuliah PBO.
+
+🚀 Cara Menjalankan
+Backend
+mvn spring-boot:run
+Backend berjalan pada:
+http://localhost:8085
+Frontend JavaFX
+mvn javafx:run
+
+📌 Hasil yang Diharapkan
+Dengan MABAR.CU, pengguna dapat menemukan teman bermain yang sesuai, berkomunikasi dengan pemain lain, serta mengelola aktivitas gaming mereka dalam satu platform yang terintegrasi.
