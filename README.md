@@ -164,4 +164,4 @@ Fungsi yang sama dapat menangani berbagai jenis data, seperti sistem chat yang d
 1. M. Affan Afyga (241401141)
 2. Rendy Januarta Manurung (241401090)
 3. Michael Garcia Arteta Ginting (241401069)
-4. Juan Carlos Simanungkalit (241401147)
+4. Juan Carlos Simanungkalit (241401117)
